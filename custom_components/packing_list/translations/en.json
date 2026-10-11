@@ -137,6 +137,64 @@
     "reset_master": {
       "name": "Reset master list",
       "description": "Replaces the whole master list with the default list. Packing lists are not affected."
+    },
+    "refresh_list": {
+      "name": "Fetch again",
+      "description": "Adds new master items matching the list's tags and categories. Items deleted from the list are not brought back.",
+      "fields": {
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list."
+        }
+      }
+    },
+    "add_list_item": {
+      "name": "Add item to packing list",
+      "description": "Adds an item to a packing list with category and tags, optionally also saving it on the master list.",
+      "fields": {
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list."
+        },
+        "item": {
+          "name": "Item",
+          "description": "Name of the item."
+        },
+        "category": {
+          "name": "Category",
+          "description": "Optional category."
+        },
+        "tags": {
+          "name": "Tags",
+          "description": "Optional tags."
+        },
+        "add_to_master": {
+          "name": "Also save in master",
+          "description": "Also save the item on the master list."
+        }
+      }
+    },
+    "copy_to_master": {
+      "name": "Save in master",
+      "description": "Saves a packing list item on the master list and links them. If the name exists, that item gets the new tags.",
+      "fields": {
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list."
+        },
+        "item": {
+          "name": "Item",
+          "description": "Name or uid of the item on the packing list."
+        },
+        "category": {
+          "name": "Category",
+          "description": "Category in the master (omitted = the item's own)."
+        },
+        "tags": {
+          "name": "Tags",
+          "description": "Tags in the master (omitted = the item's own)."
+        }
+      }
     }
   }
 }

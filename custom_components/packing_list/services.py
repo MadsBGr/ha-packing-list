@@ -39,6 +39,11 @@ SERVICE_DELETE_LIST = "delete_list"
 SERVICE_ADD_MASTER_ITEMS = "add_master_items"
 SERVICE_UPDATE_MASTER_ITEM = "update_master_item"
 SERVICE_RESET_MASTER = "reset_master"
+SERVICE_REFRESH_LIST = "refresh_list"
+SERVICE_ADD_LIST_ITEM = "add_list_item"
+SERVICE_COPY_TO_MASTER = "copy_to_master"
+
+ATTR_TO_MASTER = "add_to_master"
 
 
 def _split_list(separator: str):
@@ -98,6 +103,27 @@ UPDATE_MASTER_ITEM_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ITEM): cv.string,
         vol.Optional(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
+        vol.Optional(ATTR_TAGS): _string_list,
+    }
+)
+
+
+ADD_LIST_ITEM_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_ITEM): cv.string,
+        vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
+        vol.Optional(ATTR_TAGS, default=list): _string_list,
+        vol.Optional(ATTR_TO_MASTER, default=False): cv.boolean,
+    }
+)
+
+# Leaving out category/tags uses the list item's own.
+COPY_TO_MASTER_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_ITEM): cv.string,
         vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
         vol.Optional(ATTR_TAGS): _string_list,
     }
@@ -246,4 +272,62 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     hass.services.async_register(
         DOMAIN, SERVICE_RESET_MASTER, reset_master, schema=vol.Schema({})
+    )
+
+    async def refresh_list(call: ServiceCall) -> ServiceResponse:
+        manager = get_manager(hass)
+        list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
+        return {"added": manager.refresh_list(list_id)}
+
+    async def add_list_item(call: ServiceCall) -> ServiceResponse:
+        manager = get_manager(hass)
+        list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
+        item = manager.add_list_item(
+            list_id,
+            call.data[ATTR_ITEM],
+            category=call.data.get(ATTR_CATEGORY),
+            tags=call.data[ATTR_TAGS],
+            to_master=call.data[ATTR_TO_MASTER],
+        )
+        return {"uid": item.uid, "master_uid": item.master_uid}
+
+    async def copy_to_master(call: ServiceCall) -> ServiceResponse:
+        manager = get_manager(hass)
+        list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
+        ref = call.data[ATTR_ITEM]
+        items = manager.lists[list_id].items
+        item = next(
+            (i for i in items if i.uid == ref or i.summary.casefold() == ref.strip().casefold()),
+            None,
+        )
+        if item is None:
+            raise ServiceValidationError(f"{ref} findes ikke på pakkelisten")
+        master_item = manager.copy_to_master(
+            list_id,
+            item.uid,
+            category=call.data.get(ATTR_CATEGORY),
+            tags=call.data.get(ATTR_TAGS),
+        )
+        return {"master_uid": master_item.uid}
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_REFRESH_LIST,
+        refresh_list,
+        schema=LIST_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADD_LIST_ITEM,
+        add_list_item,
+        schema=ADD_LIST_ITEM_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_COPY_TO_MASTER,
+        copy_to_master,
+        schema=COPY_TO_MASTER_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
     )

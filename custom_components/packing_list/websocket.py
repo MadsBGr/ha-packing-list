@@ -47,6 +47,10 @@ def ws_get_data(
                     "trip_date": plist.trip_date,
                     "entity_id": list_entity_id(hass, plist.list_id),
                     "items": [item.as_dict() for item in plist.items],
+                    "tags": plist.tags,
+                    "categories": plist.categories,
+                    "include_always": plist.include_always,
+                    "excluded": plist.excluded,
                 }
                 for plist in manager.lists.values()
             ],

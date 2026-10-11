@@ -102,6 +102,65 @@ update_master_item:
 
 reset_master:
 
+refresh_list:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
+
+add_list_item:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
+    item:
+      required: true
+      example: "Kajak"
+      selector:
+        text:
+    category:
+      example: "Sport"
+      selector:
+        text:
+    tags:
+      example: "sommer, vand"
+      selector:
+        text:
+          multiple: true
+    add_to_master:
+      default: false
+      selector:
+        boolean:
+
+copy_to_master:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
+    item:
+      required: true
+      example: "Kajak"
+      selector:
+        text:
+    category:
+      example: "Sport"
+      selector:
+        text:
+    tags:
+      example: "sommer, vand"
+      selector:
+        text:
+          multiple: true
+
 reset_list:
   fields:
     entity_id:

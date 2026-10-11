@@ -19,7 +19,10 @@ and packing.*
   `todo`-entitet plus en `sensor` med hvor mange procent der er pakket.
 - **Hent fra master** efter tags (`#ski`, `#fly` …), kategori eller enkeltvis. Punkter med `#altid`
   kommer automatisk med. Dubletter springes over.
-- **Ekstra punkter** kan tilføjes til en enkelt tur uden at røre masteren.
+- **Ekstra punkter** kan tilføjes til en enkelt tur. Du kan give dem kategori og tags og gemme dem i
+  masteren med det samme eller senere.
+- **Hent igen** tilføjer nye master-punkter, der matcher listens tags og kategorier. Punkter, du har
+  slettet fra listen, kommer ikke med igen.
 - **Slette-tilstand:** Markér et eller flere punkter på en pakkeliste og slet dem på én gang.
 - **Ret master-punkter:** Navn, kategori og tags kan rettes. Ændringer i kategori og tags slår også igennem
   på pakkelisterne.
@@ -63,9 +66,17 @@ packed_mode: bottom          # valgfri: inline | bottom | hide
 
 | Fane | Hvad du gør |
 |---|---|
-| **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Med **Slet punkter** går du i slette-tilstand: Markér de punkter, der skal væk (eller **Vælg alle**), og tryk **Slet (n)**. Du kan også nulstille listen og tilføje ekstra punkter. |
+| **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Med **Slet punkter** går du i slette-tilstand: Markér de punkter, der skal væk (eller **Vælg alle**), og tryk **Slet (n)**. **Hent igen** henter nye matchende punkter fra masteren. Nederst tilføjer du nye punkter; med ⚙ kan du give dem kategori og tags og gemme dem i masteren. Punkter, der ikke findes i masteren, har ikonet "Gem i master". |
 | **Vælg fra master** | Sæt flueben ved det, der skal med. "+ #tag" henter alle punkter med et tag, og "tilføj alle" henter en hel kategori. |
-| **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Blyanten ved et punkt retter navn, kategori og tags. Skraldespanden sletter punktet. Nederst kan du nulstille hele masteren til standardlisten. |
+| **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Blyanten ved et punkt retter navn, kategori og tags. Skraldespanden sletter punktet. Nederst kan du nulstille hele masteren til standardlisten. Kortet beder om bekræftelse, før noget slettes. |
+
+### Hent igen
+
+En pakkeliste husker de tags og kategorier, den er fyldt med: tags fra **+ Ny liste**, `#altid`, "+ #tag"
+og "tilføj alle" i **Vælg fra master**. Den husker også, hvilke master-punkter du har slettet fra den.
+**Hent igen** tilføjer de master-punkter, der matcher, og som ikke allerede er på listen. Punkter, du har
+slettet, springes over. Vil du have et slettet punkt tilbage, så sæt flueben ved det i
+**Vælg fra master**, hvor det er markeret med "slettet fra listen".
 
 Overalt hvor du angiver tags, vises de eksisterende tags som forslag, du kan trykke på. Listen filtreres,
 mens du skriver. Et nyt tag tilføjer du med Enter eller komma. Valgte tags fjerner du med ×.
@@ -112,6 +123,9 @@ Når et punkt kopieres til en tur, følger beskrivelsen med, så kategorierne og
 | `packing_list.add_master_items` | Tilføj flere punkter til masteren på én gang: `items` (en liste eller ét pr. linje), valgfrit `category` og `tags`. Punkter, der allerede findes, får de nye tags. De flyttes kun til `category`, hvis deres navn står i `move`. Returnerer antal `added`, `moved`, `tagged` og `skipped`. |
 | `packing_list.update_master_item` | Ret master-punktet `item` (navn eller uid): valgfrit nyt `name`, `category` og `tags` (erstatter de gamle). Udeladte felter beholdes, og tomme felter rydder dem. |
 | `packing_list.reset_master` | Erstat hele master-listen med standardlisten. Pakkelisterne berøres ikke, men deres punkter kobles til standardlistens punkter med samme navn. |
+| `packing_list.refresh_list` | Hent igen: tilføj nye master-punkter, der matcher listens tags og kategorier, men ikke punkter, der er slettet fra listen. Returnerer `added`. |
+| `packing_list.add_list_item` | Tilføj `item` til pakkelisten `entity_id` med valgfri `category` og `tags`. Med `add_to_master: true` gemmes punktet også i masteren. |
+| `packing_list.copy_to_master` | Gem et punkt fra pakkelisten i masteren og kobl dem sammen. `category` og `tags` er som udgangspunkt punktets egne. Findes navnet allerede, får det eksisterende punkt de nye tags. |
 | `packing_list.reset_list` | Markér alle punkter som ikke pakket. |
 | `packing_list.delete_list` | Slet listen og dens entiteter. |
 

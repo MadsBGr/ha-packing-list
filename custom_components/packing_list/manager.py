@@ -102,6 +102,12 @@ class PackingList:
     name: str
     trip_date: str | None = None
     items: list[PackingItem] = field(default_factory=list)
+    # The tags/categories the list was filled with, used by "fetch again".
+    tags: list[str] = field(default_factory=list)
+    categories: list[str] = field(default_factory=list)
+    include_always: bool = False
+    # Master uids removed from the list; never re-added automatically.
+    excluded: list[str] = field(default_factory=list)
 
 
 class PackingListManager:
@@ -126,13 +132,7 @@ class PackingListManager:
             return
         self.master = [PackingItem(**item) for item in data.get("master", [])]
         for raw in data.get("lists", []):
-            items = [PackingItem(**item) for item in raw.get("items", [])]
-            plist = PackingList(
-                list_id=raw["list_id"],
-                name=raw["name"],
-                trip_date=raw.get("trip_date"),
-                items=items,
-            )
+            plist = PackingList(**{**raw, "items": [PackingItem(**i) for i in raw.get("items", [])]})
             self.lists[plist.list_id] = plist
 
     def _data_to_save(self) -> dict[str, Any]:
@@ -315,11 +315,17 @@ class PackingListManager:
         Trip lists keep their items; their links to the master are re-made by
         name, so items that also exist in the default list stay connected.
         """
+        old_names = {item.uid: item.summary.casefold() for item in self.master}
         self.master = _seed_items()
         by_name = {item.summary.casefold(): item.uid for item in self.master}
         for plist in self.lists.values():
             for list_item in plist.items:
                 list_item.master_uid = by_name.get(list_item.summary.casefold())
+            plist.excluded = [
+                by_name[old_names[uid]]
+                for uid in plist.excluded
+                if old_names.get(uid) in by_name
+            ]
             self._changed(plist.list_id)
         self._changed(MASTER_KEY)
 
@@ -336,9 +342,16 @@ class PackingListManager:
 
     @callback
     def delete_items(self, key: str, uids: Iterable[str]) -> None:
-        """Delete items by uid."""
+        """Delete items by uid.
+
+        On a trip list the master items behind deleted items are remembered,
+        so "fetch again" won't bring them back.
+        """
         remove = set(uids)
         items = self.items_for(key)
+        if plist := self.lists.get(key):
+            removed_master = [i.master_uid for i in items if i.uid in remove and i.master_uid]
+            plist.excluded = list(dict.fromkeys([*plist.excluded, *removed_master]))
         items[:] = [item for item in items if item.uid not in remove]
         self._changed(key)
 
@@ -390,18 +403,27 @@ class PackingListManager:
         """Copy matching master items to a trip list, skipping duplicates.
 
         A master item matches if its uid or summary is in ``items``, it has
-        one of ``tags``, or its category is in ``categories``. Returns the
-        number of items added.
+        one of ``tags``, or its category is in ``categories``. Items picked
+        explicitly via ``items`` are always added (and no longer excluded);
+        items matched by tag or category skip those deleted from the list
+        before. The tags and categories are remembered for refresh_list.
+        Returns the number of items added.
         """
         plist = self.lists[list_id]
         wanted_refs = {ref.strip().casefold() for ref in items}
-        wanted_tags = {normalize_tag(tag) for tag in tags}
+        wanted_tags = {normalize_tag(tag) for tag in tags} - {""}
+        wanted_categories = {cat.strip().replace("_", " ") for cat in categories} - {""}
+
+        plist.tags = list(dict.fromkeys([*plist.tags, *sorted(wanted_tags)]))
+        plist.categories = list(dict.fromkeys([*plist.categories, *sorted(wanted_categories)]))
+        plist.include_always = plist.include_always or include_always
         if include_always:
             wanted_tags.add(ALWAYS_TAG)
-        wanted_categories = {cat.strip().replace("_", " ").casefold() for cat in categories}
+        wanted_categories = {cat.casefold() for cat in wanted_categories}
 
         have_master = {item.master_uid for item in plist.items if item.master_uid}
         have_summary = {item.summary.casefold() for item in plist.items}
+        excluded = set(plist.excluded)
 
         added = 0
         for master_item in self.master:
@@ -409,10 +431,11 @@ class PackingListManager:
             if master_item.uid in have_master or summary_key in have_summary:
                 continue
             category, item_tags, _ = parse_description(master_item.description)
-            if not (
-                master_item.uid in wanted_refs
-                or summary_key in wanted_refs
-                or wanted_tags.intersection(item_tags)
+            explicit = master_item.uid in wanted_refs or summary_key in wanted_refs
+            if explicit:
+                excluded.discard(master_item.uid)
+            elif master_item.uid in excluded or not (
+                wanted_tags.intersection(item_tags)
                 or (category is not None and category.casefold() in wanted_categories)
             ):
                 continue
@@ -428,6 +451,80 @@ class PackingListManager:
             have_summary.add(summary_key)
             added += 1
 
-        if added:
-            self._changed(list_id)
+        plist.excluded = [uid for uid in plist.excluded if uid in excluded]
+        # Always announce: the remembered selection may have changed even if nothing was added.
+        self._changed(list_id)
         return added
+
+    @callback
+    def refresh_list(self, list_id: str) -> int:
+        """Fetch new master items matching the list's remembered tags/categories."""
+        plist = self.lists[list_id]
+        return self.add_from_master(
+            list_id,
+            tags=plist.tags,
+            categories=plist.categories,
+            include_always=plist.include_always,
+        )
+
+    @callback
+    def add_list_item(
+        self,
+        list_id: str,
+        summary: str,
+        *,
+        category: str | None = None,
+        tags: Iterable[str] = (),
+        to_master: bool = False,
+    ) -> PackingItem:
+        """Add an item to a trip list, optionally also saving it on the master list."""
+        item = self.create_item(list_id, summary, build_description(category, tags))
+        if to_master:
+            self.copy_to_master(list_id, item.uid)
+        return item
+
+    @callback
+    def copy_to_master(
+        self,
+        list_id: str,
+        uid: str,
+        *,
+        category: str | None = None,
+        tags: Iterable[str] | None = None,
+    ) -> PackingItem:
+        """Save a trip list item on the master list and link the two.
+
+        ``category``/``tags`` default to the list item's own. If the name
+        already exists on the master list, that item gets the new tags (and
+        the category if it has none) instead of a duplicate being created.
+        """
+        plist = self.lists[list_id]
+        list_item = self._find(list_id, uid)
+        own_category, own_tags, notes = parse_description(list_item.description)
+        category = own_category if category is None else category
+        tags = own_tags if tags is None else [normalize_tag(t) for t in tags]
+
+        try:
+            master_item = self.find_master(list_item.summary)
+        except KeyError:
+            master_item = PackingItem(
+                uid=_new_uid(),
+                summary=list_item.summary,
+                description=build_description(category, tags),
+            )
+            self.master.append(master_item)
+        else:
+            old_category, old_tags, _ = parse_description(master_item.description)
+            self._set_master_meta(
+                master_item,
+                category=old_category or category,
+                tags=[*old_tags, *(t for t in tags if t not in old_tags)],
+            )
+
+        master_category, master_tags, _ = parse_description(master_item.description)
+        list_item.master_uid = master_item.uid
+        list_item.description = build_description(master_category, master_tags, notes)
+        plist.excluded = [u for u in plist.excluded if u != master_item.uid]
+        self._changed(MASTER_KEY)
+        self._changed(list_id)
+        return master_item

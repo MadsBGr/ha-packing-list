@@ -137,6 +137,64 @@
     "reset_master": {
       "name": "Nulstil master-listen",
       "description": "Erstatter hele master-listen med standardlisten. Pakkelisterne berøres ikke."
+    },
+    "refresh_list": {
+      "name": "Hent igen",
+      "description": "Henter nye master-punkter, der matcher listens tags og kategorier. Punkter, der er slettet fra listen, kommer ikke med igen.",
+      "fields": {
+        "entity_id": {
+          "name": "Pakkeliste",
+          "description": "Pakkelisten."
+        }
+      }
+    },
+    "add_list_item": {
+      "name": "Tilføj punkt til pakkeliste",
+      "description": "Tilføjer et punkt til en pakkeliste med kategori og tags, og gemmer det eventuelt også i master-listen.",
+      "fields": {
+        "entity_id": {
+          "name": "Pakkeliste",
+          "description": "Pakkelisten."
+        },
+        "item": {
+          "name": "Punkt",
+          "description": "Navnet på punktet."
+        },
+        "category": {
+          "name": "Kategori",
+          "description": "Valgfri kategori."
+        },
+        "tags": {
+          "name": "Tags",
+          "description": "Valgfrie tags."
+        },
+        "add_to_master": {
+          "name": "Gem også i master",
+          "description": "Gem også punktet i master-listen."
+        }
+      }
+    },
+    "copy_to_master": {
+      "name": "Gem i master",
+      "description": "Gemmer et punkt fra en pakkeliste i master-listen og kobler dem sammen. Findes navnet allerede, får det eksisterende punkt de nye tags.",
+      "fields": {
+        "entity_id": {
+          "name": "Pakkeliste",
+          "description": "Pakkelisten."
+        },
+        "item": {
+          "name": "Punkt",
+          "description": "Punktets navn eller uid på pakkelisten."
+        },
+        "category": {
+          "name": "Kategori",
+          "description": "Kategori i masteren (udeladt = punktets egen)."
+        },
+        "tags": {
+          "name": "Tags",
+          "description": "Tags i masteren (udeladt = punktets egne)."
+        }
+      }
     }
   }
 }
