@@ -9,7 +9,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.5.0";
+const CARD_VERSION = "0.6.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const UNCATEGORIZED = "Andet";
 const ALWAYS_TAG = "altid";
@@ -94,6 +94,9 @@ const STYLE = `
   .small { font-size: .8em; }
   .error { color: var(--error-color); padding: 8px 0; }
   .notice { color: var(--success-color, var(--primary-color)); font-size: .9em; }
+  .tagpicker { display: flex; flex-direction: column; gap: 6px; }
+  .tagpicker .chip.on .x { margin-left: 4px; opacity: .8; }
+  .tagpicker .suggest .chip { border-style: dashed; }
 `;
 
 class PackingListCard extends HTMLElement {
@@ -119,6 +122,12 @@ class PackingListCard extends HTMLElement {
     root.addEventListener("input", (ev) => {
       const key = ev.target.dataset.input;
       if (key) this._form[key] = ev.target.value;
+      const tagKey = ev.target.dataset.tagkey;
+      if (tagKey) {
+        // A comma finishes a tag; otherwise just filter the suggestions (no re-render, keeps focus).
+        if (ev.target.value.includes(",")) this._addDraftTags(tagKey);
+        else this._updateSuggestions(tagKey);
+      }
     });
     root.addEventListener("change", (ev) => this._onChange(ev));
     root.addEventListener("keydown", (ev) => {
@@ -213,11 +222,62 @@ class PackingListCard extends HTMLElement {
     return this._data?.lists.find((l) => l.list_id === this._listId) || null;
   }
 
-  _allTags() {
+  // Tags used on the master list; #altid is left out where it can't be used for picking.
+  _allTags(includeAlways = false) {
     const tags = new Set();
     for (const item of this._data?.master || []) item.tags.forEach((t) => tags.add(t));
-    tags.delete(ALWAYS_TAG);
+    if (!includeAlways) tags.delete(ALWAYS_TAG);
     return [...tags].sort((a, b) => a.localeCompare(b, "da"));
+  }
+
+  // ------------------------------------------------------------ tag picker
+  // Selected tags live in this._form[key] (array), the typed text in this._form[key + "Draft"].
+
+  _renderTagPicker(key, submitAction) {
+    const selected = this._form[key] || [];
+    const chips = selected
+      .map(
+        (t) =>
+          `<button class="chip on" data-action="tag-remove" data-key="${key}" data-tag="${esc(t)}" title="Fjern">#${esc(t)}<span class="x">×</span></button>`,
+      )
+      .join("");
+    const autofocus = this._focusTagKey === key ? "data-autofocus" : "";
+    return `<div class="tagpicker">
+        ${chips ? `<div class="chips">${chips}</div>` : ""}
+        <input data-input="${key}Draft" data-tagkey="${key}" data-enter="tag-add" data-submit="${submitAction}" ${autofocus}
+          placeholder="Tags – vælg herunder eller skriv et nyt (Enter/komma tilføjer)" value="${esc(this._form[`${key}Draft`] || "")}">
+        <div class="chips suggest" data-suggest="${key}">${this._suggestionChips(key)}</div>
+      </div>`;
+  }
+
+  _suggestionChips(key) {
+    const selected = new Set(this._form[key] || []);
+    const draft = splitTags(this._form[`${key}Draft`]).at(-1) || "";
+    return this._allTags(true)
+      .filter((t) => !selected.has(t) && t.includes(draft))
+      .map((t) => `<button class="chip" data-action="tag-pick" data-key="${key}" data-tag="${esc(t)}">+ #${esc(t)}</button>`)
+      .join("");
+  }
+
+  _updateSuggestions(key) {
+    const box = this.shadowRoot.querySelector(`[data-suggest="${key}"]`);
+    if (box) box.innerHTML = this._suggestionChips(key);
+  }
+
+  // Move typed tags into the selection. Returns true if anything was typed.
+  _addDraftTags(key) {
+    const typed = splitTags(this._form[`${key}Draft`]);
+    this._form[`${key}Draft`] = "";
+    this._form[key] = [...new Set([...(this._form[key] || []), ...typed])];
+    this._focusTagKey = key;
+    this._render();
+    this._focusTagKey = null;
+    return typed.length > 0;
+  }
+
+  // Selected tags plus anything still in the input (so a typed tag isn't lost on save).
+  _tagsFor(key) {
+    return [...new Set([...(this._form[key] || []), ...splitTags(this._form[`${key}Draft`])])];
   }
 
   _categories() {
@@ -448,9 +508,9 @@ class PackingListCard extends HTMLElement {
     if (m.uid === this._editUid) {
       const f = this._form;
       return `<div class="item editing">
-          <input data-input="eName" data-enter="save-edit" data-autofocus placeholder="Navn" value="${esc(f.eName)}">
+          <input data-input="eName" data-enter="save-edit" ${this._focusEditName ? "data-autofocus" : ""} placeholder="Navn" value="${esc(f.eName)}">
           <input data-input="eCat" data-enter="save-edit" list="pl-categories" placeholder="Kategori (tom = ingen)" value="${esc(f.eCat)}">
-          <input data-input="eTags" data-enter="save-edit" placeholder="Tags, f.eks. sommer, strand" value="${esc(f.eTags)}">
+          ${this._renderTagPicker("eTags", "save-edit")}
           <div class="row"><button class="primary" data-action="save-edit">Gem</button>
             <button data-action="cancel-edit">Annuller</button></div>
         </div>`;
@@ -476,11 +536,14 @@ class PackingListCard extends HTMLElement {
         <textarea data-input="mNames" data-enter="add-master" rows="4"
           placeholder="Badetøj&#10;Badehåndklæde&#10;Klipklappere">${esc(f.mNames || "")}</textarea>
         <input data-input="mCat" list="pl-categories" placeholder="Kategori, f.eks. Tøj" value="${esc(f.mCat || "")}">
-        <input data-input="mTags" data-enter="add-master" placeholder="Tags, f.eks. sommer, strand (altid = med på alle lister)" value="${esc(f.mTags || "")}">
+        ${this._renderTagPicker("mTags", "add-master")}
+        <div class="muted small" style="padding:0">#${ALWAYS_TAG} = kommer med på alle nye lister</div>
         <div class="row"><button class="primary" data-action="add-master">Tilføj til master</button>
           ${this._notice ? `<span class="notice">${esc(this._notice)}</span>` : ""}</div>
       </div>
-      ${groups || `<div class="empty">Master-listen er tom.</div>`}`;
+      ${groups || `<div class="empty">Master-listen er tom.</div>`}
+      <div class="row add"><button data-action="reset-master">
+        <ha-icon icon="mdi:restore"></ha-icon> Nulstil til standard master-liste</button></div>`;
   }
 
   // ----------------------------------------------------------------- actions
@@ -538,7 +601,7 @@ class PackingListCard extends HTMLElement {
       }
     }
 
-    const data = { items: names, tags: splitTags(f.mTags), move };
+    const data = { items: names, tags: this._tagsFor("mTags"), move };
     if (category) data.category = category;
     const res = await this._callWithResponse("add_master_items", data);
     const parts = [
@@ -549,7 +612,7 @@ class PackingListCard extends HTMLElement {
     ].filter(Boolean);
     this._notice = parts.join(", ") || "Intet ændret";
     // Keep category and tags so the next batch can reuse them.
-    this._form = { ...f, mNames: "" };
+    this._form = { ...f, mNames: "", mTags: data.tags, mTagsDraft: "" };
     this._render();
   }
 
@@ -677,8 +740,10 @@ class PackingListCard extends HTMLElement {
           const m = this._data.master.find((i) => i.uid === el.dataset.uid);
           if (!m) return;
           this._editUid = m.uid;
-          Object.assign(f, { eName: m.summary, eCat: m.category || "", eTags: m.tags.join(", ") });
+          Object.assign(f, { eName: m.summary, eCat: m.category || "", eTags: [...m.tags], eTagsDraft: "" });
+          this._focusEditName = true;
           this._render();
+          this._focusEditName = false;
           break;
         }
         case "cancel-edit":
@@ -694,10 +759,42 @@ class PackingListCard extends HTMLElement {
             item: uid,
             name: (f.eName || "").trim() || undefined,
             category: (f.eCat || "").trim(),
-            tags: splitTags(f.eTags),
+            tags: this._tagsFor("eTags"),
           });
           break;
         }
+        case "tag-pick": {
+          const key = el.dataset.key;
+          f[key] = [...new Set([...(f[key] || []), el.dataset.tag])];
+          f[`${key}Draft`] = "";
+          this._render();
+          break;
+        }
+        case "tag-remove": {
+          const key = el.dataset.key;
+          f[key] = (f[key] || []).filter((t) => t !== el.dataset.tag);
+          this._render();
+          break;
+        }
+        case "tag-add": {
+          // Enter in the tag field: add the typed tag, or submit the form if nothing was typed.
+          const key = el.dataset.tagkey;
+          if (!this._addDraftTags(key) && el.dataset.submit) await this._action(el.dataset.submit, el);
+          break;
+        }
+        case "reset-master":
+          if (
+            !confirm(
+              "Nulstil master-listen til standardlisten?\n\n" +
+                "Alle dine egne punkter, kategorier og tags i masteren bliver erstattet. " +
+                "Dine pakkelister berøres ikke.",
+            )
+          )
+            return;
+          this._editUid = null;
+          this._notice = null;
+          await this._call("packing_list", "reset_master", {});
+          break;
         case "delete-master":
           await this._call("todo", "remove_item", { item: el.dataset.uid }, { entity_id: this._data.master_entity_id });
           break;

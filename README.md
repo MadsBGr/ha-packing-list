@@ -65,7 +65,10 @@ packed_mode: bottom          # valgfri: inline | bottom | hide
 |---|---|
 | **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Med **Slet punkter** går du i slette-tilstand: Markér de punkter, der skal væk (eller **Vælg alle**), og tryk **Slet (n)**. Du kan også nulstille listen og tilføje ekstra punkter. |
 | **Vælg fra master** | Sæt flueben ved det, der skal med. "+ #tag" henter alle punkter med et tag, og "tilføj alle" henter en hel kategori. |
-| **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Blyanten ved et punkt retter navn, kategori og tags. Skraldespanden sletter punktet. |
+| **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Blyanten ved et punkt retter navn, kategori og tags. Skraldespanden sletter punktet. Nederst kan du nulstille hele masteren til standardlisten. |
+
+Overalt hvor du angiver tags, vises de eksisterende tags som forslag, du kan trykke på. Listen filtreres,
+mens du skriver. Et nyt tag tilføjer du med Enter eller komma. Valgte tags fjerner du med ×.
 
 Valget af visning for pakkede punkter huskes i den enkelte browser. `packed_mode` bestemmer kun, hvad der
 vises første gang.
@@ -108,6 +111,7 @@ Når et punkt kopieres til en tur, følger beskrivelsen med, så kategorierne og
 | `packing_list.add_from_master` | Tilføj fra master til `entity_id` efter `tags`, `categories` eller `items` (navn eller uid). |
 | `packing_list.add_master_items` | Tilføj flere punkter til masteren på én gang: `items` (en liste eller ét pr. linje), valgfrit `category` og `tags`. Punkter, der allerede findes, får de nye tags. De flyttes kun til `category`, hvis deres navn står i `move`. Returnerer antal `added`, `moved`, `tagged` og `skipped`. |
 | `packing_list.update_master_item` | Ret master-punktet `item` (navn eller uid): valgfrit nyt `name`, `category` og `tags` (erstatter de gamle). Udeladte felter beholdes, og tomme felter rydder dem. |
+| `packing_list.reset_master` | Erstat hele master-listen med standardlisten. Pakkelisterne berøres ikke, men deres punkter kobles til standardlistens punkter med samme navn. |
 | `packing_list.reset_list` | Markér alle punkter som ikke pakket. |
 | `packing_list.delete_list` | Slet listen og dens entiteter. |
 

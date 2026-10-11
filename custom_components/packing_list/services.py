@@ -38,6 +38,7 @@ SERVICE_RESET_LIST = "reset_list"
 SERVICE_DELETE_LIST = "delete_list"
 SERVICE_ADD_MASTER_ITEMS = "add_master_items"
 SERVICE_UPDATE_MASTER_ITEM = "update_master_item"
+SERVICE_RESET_MASTER = "reset_master"
 
 
 def _split_list(separator: str):
@@ -238,4 +239,11 @@ def async_register_services(hass: HomeAssistant) -> None:
         SERVICE_UPDATE_MASTER_ITEM,
         update_master_item,
         schema=UPDATE_MASTER_ITEM_SCHEMA,
+    )
+
+    async def reset_master(call: ServiceCall) -> None:
+        get_manager(hass).reset_master()
+
+    hass.services.async_register(
+        DOMAIN, SERVICE_RESET_MASTER, reset_master, schema=vol.Schema({})
     )

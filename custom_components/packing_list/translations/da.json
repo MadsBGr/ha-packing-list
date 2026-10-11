@@ -133,6 +133,10 @@
           "description": "Nye tags (erstatter de gamle). Tom liste fjerner alle tags, udeladt beholder dem."
         }
       }
+    },
+    "reset_master": {
+      "name": "Nulstil master-listen",
+      "description": "Erstatter hele master-listen med standardlisten. Pakkelisterne berøres ikke."
     }
   }
 }

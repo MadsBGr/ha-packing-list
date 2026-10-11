@@ -56,6 +56,13 @@ def _new_uid() -> str:
     return uuid.uuid4().hex
 
 
+def _seed_items() -> list[PackingItem]:
+    return [
+        PackingItem(uid=_new_uid(), summary=summary, description=desc)
+        for summary, desc in SEED_ITEMS
+    ]
+
+
 @dataclass
 class PackingItem:
     """An item on the master list or on a trip list."""
@@ -114,10 +121,7 @@ class PackingListManager:
         data = await self.store.async_load()
         if data is None:
             if self._seed_master:
-                self.master = [
-                    PackingItem(uid=_new_uid(), summary=summary, description=desc)
-                    for summary, desc in SEED_ITEMS
-                ]
+                self.master = _seed_items()
             self._schedule_save()
             return
         self.master = [PackingItem(**item) for item in data.get("master", [])]
@@ -302,6 +306,21 @@ class PackingListManager:
             category=old_category if category is None else category,
             tags=old_tags if tags is None else tags,
         )
+        self._changed(MASTER_KEY)
+
+    @callback
+    def reset_master(self) -> None:
+        """Replace the master list with the default (seed) list.
+
+        Trip lists keep their items; their links to the master are re-made by
+        name, so items that also exist in the default list stay connected.
+        """
+        self.master = _seed_items()
+        by_name = {item.summary.casefold(): item.uid for item in self.master}
+        for plist in self.lists.values():
+            for list_item in plist.items:
+                list_item.master_uid = by_name.get(list_item.summary.casefold())
+            self._changed(plist.list_id)
         self._changed(MASTER_KEY)
 
     @callback

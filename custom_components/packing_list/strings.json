@@ -133,6 +133,10 @@
           "description": "New tags (replace the old ones). Empty list removes all tags, omitted keeps them."
         }
       }
+    },
+    "reset_master": {
+      "name": "Reset master list",
+      "description": "Replaces the whole master list with the default list. Packing lists are not affected."
     }
   }
 }

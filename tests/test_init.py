@@ -197,6 +197,33 @@ async def test_update_master_item(hass: HomeAssistant, setup_entry) -> None:
         )
 
 
+async def test_reset_master(hass: HomeAssistant, setup_entry, hass_ws_client) -> None:
+    entity_id = (await _create(hass, name="Tur", items=["Pas"], include_always=False))["entity_id"]
+    await hass.services.async_call(
+        DOMAIN, "add_master_items", {"items": ["Kajak"], "category": "Sport"}, blocking=True
+    )
+    await hass.services.async_call(
+        DOMAIN, "update_master_item", {"item": "Pas", "category": "Vigtigt"}, blocking=True
+    )
+    await hass.services.async_call("todo", "add_item", {"item": "Kajak"}, target={"entity_id": entity_id}, blocking=True)
+
+    await hass.services.async_call(DOMAIN, "reset_master", {}, blocking=True)
+
+    items = {i["summary"]: i for i in await _items(hass, MASTER)}
+    assert len(items) == len(SEED_ITEMS)
+    assert "Kajak" not in items
+    assert items["Pas"]["description"] == "@Dokumenter #udland #fly"
+
+    # The trip list is untouched; Pas is linked to the new master item, Kajak to nothing.
+    assert sorted(i["summary"] for i in await _items(hass, entity_id)) == ["Kajak", "Pas"]
+    client = await hass_ws_client(hass)
+    await client.send_json({"id": 1, "type": f"{DOMAIN}/data"})
+    data = (await client.receive_json())["result"]
+    links = {i["summary"]: i["master_uid"] for i in data["lists"][0]["items"]}
+    assert links["Pas"] == items["Pas"]["uid"]
+    assert links["Kajak"] is None
+
+
 async def test_websocket_data(hass: HomeAssistant, setup_entry, hass_ws_client) -> None:
     await _create(hass, name="Ws", items=["Pas"], include_always=False)
     client = await hass_ws_client(hass)

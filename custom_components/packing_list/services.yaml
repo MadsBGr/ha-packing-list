@@ -100,6 +100,8 @@ update_master_item:
         text:
           multiple: true
 
+reset_master:
+
 reset_list:
   fields:
     entity_id:
