@@ -41,6 +41,30 @@ async def test_refresh_skips_deleted_items(hass: HomeAssistant, setup_entry) -> 
     assert await _call(hass, "refresh_list", {"entity_id": entity_id}, True) == {"added": 0}
 
 
+async def test_include_excluded(hass: HomeAssistant, setup_entry) -> None:
+    entity_id = (await _create(hass, name="Strand", tags=["strand"], include_always=False))["entity_id"]
+    assert await _names(hass, entity_id) == {"Badetøj", "Solcreme"}
+    uid = next(i["uid"] for i in await _items(hass, entity_id) if i["summary"] == "Badetøj")
+    await hass.services.async_call("todo", "remove_item", {"item": uid}, target={"entity_id": entity_id}, blocking=True)
+
+    # Adding the tag again only brings new items ...
+    assert await _call(hass, "add_from_master", {"entity_id": entity_id, "tags": ["strand"]}, True) == {"added": 0}
+    # ... unless asked to include the deleted ones.
+    assert await _call(
+        hass, "add_from_master", {"entity_id": entity_id, "tags": ["strand"], "include_excluded": True}, True
+    ) == {"added": 1}
+    assert "Badetøj" in await _names(hass, entity_id)
+
+    # Same for refresh_list; afterwards the item counts as not deleted any more.
+    uid = next(i["uid"] for i in await _items(hass, entity_id) if i["summary"] == "Solcreme")
+    await hass.services.async_call("todo", "remove_item", {"item": uid}, target={"entity_id": entity_id}, blocking=True)
+    assert await _call(hass, "refresh_list", {"entity_id": entity_id}, True) == {"added": 0}
+    assert await _call(hass, "refresh_list", {"entity_id": entity_id, "include_excluded": True}, True) == {"added": 1}
+    uid = next(i["uid"] for i in await _items(hass, entity_id) if i["summary"] == "Solcreme")
+    await hass.services.async_call("todo", "remove_item", {"item": uid}, target={"entity_id": entity_id}, blocking=True)
+    assert await _call(hass, "refresh_list", {"entity_id": entity_id}, True) == {"added": 0}
+
+
 async def test_refresh_remembers_later_tags_and_categories(hass: HomeAssistant, setup_entry) -> None:
     entity_id = (await _create(hass, name="Tur", include_always=False))["entity_id"]
     assert await _names(hass, entity_id) == set()

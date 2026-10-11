@@ -55,6 +55,10 @@ add_from_master:
       default: false
       selector:
         boolean:
+    include_excluded:
+      default: false
+      selector:
+        boolean:
 
 add_master_items:
   fields:
@@ -110,6 +114,10 @@ refresh_list:
         entity:
           integration: packing_list
           domain: todo
+    include_excluded:
+      default: false
+      selector:
+        boolean:
 
 add_list_item:
   fields:

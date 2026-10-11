@@ -399,6 +399,7 @@ class PackingListManager:
         tags: Iterable[str] = (),
         categories: Iterable[str] = (),
         include_always: bool = False,
+        include_excluded: bool = False,
     ) -> int:
         """Copy matching master items to a trip list, skipping duplicates.
 
@@ -406,8 +407,8 @@ class PackingListManager:
         one of ``tags``, or its category is in ``categories``. Items picked
         explicitly via ``items`` are always added (and no longer excluded);
         items matched by tag or category skip those deleted from the list
-        before. The tags and categories are remembered for refresh_list.
-        Returns the number of items added.
+        before, unless ``include_excluded`` is set. The tags and categories
+        are remembered for refresh_list. Returns the number of items added.
         """
         plist = self.lists[list_id]
         wanted_refs = {ref.strip().casefold() for ref in items}
@@ -432,13 +433,15 @@ class PackingListManager:
                 continue
             category, item_tags, _ = parse_description(master_item.description)
             explicit = master_item.uid in wanted_refs or summary_key in wanted_refs
-            if explicit:
-                excluded.discard(master_item.uid)
-            elif master_item.uid in excluded or not (
-                wanted_tags.intersection(item_tags)
-                or (category is not None and category.casefold() in wanted_categories)
-            ):
+            matched = wanted_tags.intersection(item_tags) or (
+                category is not None and category.casefold() in wanted_categories
+            )
+            if not explicit and not matched:
                 continue
+            if master_item.uid in excluded:
+                if not explicit and not include_excluded:
+                    continue
+                excluded.discard(master_item.uid)
             plist.items.append(
                 PackingItem(
                     uid=_new_uid(),
@@ -457,7 +460,7 @@ class PackingListManager:
         return added
 
     @callback
-    def refresh_list(self, list_id: str) -> int:
+    def refresh_list(self, list_id: str, include_excluded: bool = False) -> int:
         """Fetch new master items matching the list's remembered tags/categories."""
         plist = self.lists[list_id]
         return self.add_from_master(
@@ -465,6 +468,7 @@ class PackingListManager:
             tags=plist.tags,
             categories=plist.categories,
             include_always=plist.include_always,
+            include_excluded=include_excluded,
         )
 
     @callback

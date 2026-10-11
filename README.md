@@ -21,12 +21,13 @@ and packing.*
   kommer automatisk med. Dubletter springes over.
 - **Ekstra punkter** kan tilføjes til en enkelt tur. Du kan give dem kategori og tags og gemme dem i
   masteren med det samme eller senere.
-- **Hent igen** tilføjer nye master-punkter, der matcher listens tags og kategorier. Punkter, du har
-  slettet fra listen, kommer ikke med igen.
+- **Hent igen** tilføjer nye master-punkter, der matcher listens tags og kategorier. Har du tidligere
+  slettet nogle af dem fra listen, bliver du spurgt, om de også skal hentes igen.
 - **Slette-tilstand:** Markér et eller flere punkter på en pakkeliste og slet dem på én gang.
 - **Ret master-punkter:** Navn, kategori og tags kan rettes. Ændringer i kategori og tags slår også igennem
   på pakkelisterne.
-- **Nulstil** sætter en liste til "ikke pakket", så den kan genbruges til hjemrejsen.
+- **Fjern flueben** markerer hele listen som "ikke pakket", så den kan genbruges til hjemrejsen. Kortet
+  beder om bekræftelse først.
 - **Medfølgende Lovelace-kort** med tre faner: *Pak*, *Vælg fra master* og *Master*.
   Alt er sorteret alfabetisk inden for hver kategori. Integrationen
   opretter selv kortets ressource under Dashboards → Ressourcer.
@@ -66,7 +67,7 @@ packed_mode: bottom          # valgfri: inline | bottom | hide
 
 | Fane | Hvad du gør |
 |---|---|
-| **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Med **Slet punkter** går du i slette-tilstand: Markér de punkter, der skal væk (eller **Vælg alle**), og tryk **Slet (n)**. **Hent igen** henter nye matchende punkter fra masteren. Nederst tilføjer du nye punkter; med ⚙ kan du give dem kategori og tags og gemme dem i masteren. Punkter, der ikke findes i masteren, har ikonet "Gem i master". |
+| **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Med **Slet punkter** går du i slette-tilstand: Markér de punkter, der skal væk (eller **Vælg alle**), og tryk **Slet (n)**. **Hent igen** henter nye matchende punkter fra masteren. **Fjern flueben** markerer alle punkter som ikke pakket, efter du har bekræftet det. Nederst tilføjer du nye punkter; med justér-knappen kan du give dem kategori og tags og gemme dem i masteren. Punkter, der ikke findes i masteren, har ikonet "Gem i master". |
 | **Vælg fra master** | Sæt flueben ved det, der skal med. "+ #tag" henter alle punkter med et tag, og "tilføj alle" henter en hel kategori. |
 | **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Blyanten ved et punkt retter navn, kategori og tags. Skraldespanden sletter punktet. Nederst kan du nulstille hele masteren til standardlisten. Kortet beder om bekræftelse, før noget slettes. |
 
@@ -74,9 +75,14 @@ packed_mode: bottom          # valgfri: inline | bottom | hide
 
 En pakkeliste husker de tags og kategorier, den er fyldt med: tags fra **+ Ny liste**, `#altid`, "+ #tag"
 og "tilføj alle" i **Vælg fra master**. Den husker også, hvilke master-punkter du har slettet fra den.
-**Hent igen** tilføjer de master-punkter, der matcher, og som ikke allerede er på listen. Punkter, du har
-slettet, springes over. Vil du have et slettet punkt tilbage, så sæt flueben ved det i
-**Vælg fra master**, hvor det er markeret med "slettet fra listen".
+**Hent igen** tilføjer de master-punkter, der matcher, og som ikke allerede er på listen.
+
+Er nogle af de matchende punkter tidligere slettet fra listen, spørger kortet, om de også skal hentes
+igen: **Hent også de slettede**, **Kun nye punkter** eller **Annuller**. Det samme sker, når du bruger
+"+ #tag" eller "tilføj alle" i **Vælg fra master**. Et enkelt slettet punkt kan du altid hente tilbage ved
+at sætte flueben ved det i **Vælg fra master**, hvor det er markeret med "slettet fra listen".
+
+Fra scripts bruger du feltet `include_excluded: true` på `add_from_master` eller `refresh_list`.
 
 Overalt hvor du angiver tags, vises de eksisterende tags som forslag, du kan trykke på. Listen filtreres,
 mens du skriver. Et nyt tag tilføjer du med Enter eller komma. Valgte tags fjerner du med ×.

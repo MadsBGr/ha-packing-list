@@ -31,6 +31,7 @@ ATTR_ITEM = "item"
 ATTR_ITEMS = "items"
 ATTR_MOVE = "move"
 ATTR_INCLUDE_ALWAYS = "include_always"
+ATTR_INCLUDE_EXCLUDED = "include_excluded"
 
 SERVICE_CREATE_LIST = "create_list"
 SERVICE_ADD_FROM_MASTER = "add_from_master"
@@ -83,7 +84,15 @@ ADD_FROM_MASTER_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ENTITY_ID): cv.entity_id,
         vol.Optional(ATTR_INCLUDE_ALWAYS, default=False): cv.boolean,
+        vol.Optional(ATTR_INCLUDE_EXCLUDED, default=False): cv.boolean,
         **_SELECTION_SCHEMA,
+    }
+)
+
+REFRESH_LIST_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Optional(ATTR_INCLUDE_EXCLUDED, default=False): cv.boolean,
     }
 )
 
@@ -193,7 +202,11 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def add_from_master(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
         list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
-        added = manager.add_from_master(list_id, **_selection(call.data))
+        added = manager.add_from_master(
+            list_id,
+            **_selection(call.data),
+            include_excluded=call.data[ATTR_INCLUDE_EXCLUDED],
+        )
         return {"added": added}
 
     async def reset_list(call: ServiceCall) -> None:
@@ -277,7 +290,11 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def refresh_list(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
         list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
-        return {"added": manager.refresh_list(list_id)}
+        return {
+            "added": manager.refresh_list(
+                list_id, include_excluded=call.data[ATTR_INCLUDE_EXCLUDED]
+            )
+        }
 
     async def add_list_item(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
@@ -314,7 +331,7 @@ def async_register_services(hass: HomeAssistant) -> None:
         DOMAIN,
         SERVICE_REFRESH_LIST,
         refresh_list,
-        schema=LIST_SCHEMA,
+        schema=REFRESH_LIST_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
     hass.services.async_register(

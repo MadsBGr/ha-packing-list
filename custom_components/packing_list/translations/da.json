@@ -67,6 +67,10 @@
         "include_always": {
           "name": "Medtag #altid",
           "description": "Hent også alle punkter med tagget #altid."
+        },
+        "include_excluded": {
+          "name": "Medtag slettede",
+          "description": "Hent også punkter, der tidligere er slettet fra listen."
         }
       }
     },
@@ -93,8 +97,8 @@
       }
     },
     "reset_list": {
-      "name": "Nulstil pakkeliste",
-      "description": "Markerer alle punkter på pakkelisten som ikke pakket.",
+      "name": "Fjern flueben",
+      "description": "Fjerner fluebenet fra alle punkter på pakkelisten, så alt står som ikke pakket.",
       "fields": {
         "entity_id": {
           "name": "Pakkeliste",
@@ -145,6 +149,10 @@
         "entity_id": {
           "name": "Pakkeliste",
           "description": "Pakkelisten."
+        },
+        "include_excluded": {
+          "name": "Medtag slettede",
+          "description": "Hent også punkter, der tidligere er slettet fra listen."
         }
       }
     },

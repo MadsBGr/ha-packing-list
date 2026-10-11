@@ -9,7 +9,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.7.0";
+const CARD_VERSION = "0.8.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const UNCATEGORIZED = "Andet";
 const ALWAYS_TAG = "altid";
@@ -60,7 +60,7 @@ const STYLE = `
   }
   button.primary, button.active { background: var(--primary-color); color: var(--text-primary-color, #fff); border-color: var(--primary-color); }
   button.danger { background: var(--error-color, #db4437); color: #fff; border-color: var(--error-color, #db4437); }
-  button.danger:disabled { opacity: .5; cursor: default; }
+  button:disabled { opacity: .5; cursor: default; }
   button.icon { border: none; padding: 4px; color: var(--secondary-text-color); }
   button.link { border: none; padding: 0 4px; color: var(--primary-color); font-size: .85em; }
   .progress { display: flex; align-items: center; gap: 8px; margin: 12px 0 4px; font-size: .9em; color: var(--secondary-text-color); }
@@ -316,12 +316,25 @@ class PackingListCard extends HTMLElement {
 
   // In-card confirmation (native confirm() can be suppressed, e.g. in the companion app).
   // The dialog is rendered where _renderDialog(anchor) is placed, next to what triggered it.
-  _ask(anchor, message, { yes = "OK", no = "Annuller", danger = false } = {}) {
-    this._dialog?.resolve(false);
+  // Resolves with the value of the chosen button; the last button is the "cancel" one.
+  _choose(anchor, message, buttons, { danger = false } = {}) {
+    this._dialog?.resolve(buttons.at(-1).value);
     return new Promise((resolve) => {
-      this._dialog = { anchor, message, yes, no, danger, resolve };
+      this._dialog = { anchor, message, buttons, danger, resolve };
       this._render();
     });
+  }
+
+  _ask(anchor, message, { yes = "OK", no = "Annuller", danger = false } = {}) {
+    return this._choose(
+      anchor,
+      message,
+      [
+        { label: yes, value: true, style: danger ? "danger" : "primary" },
+        { label: no, value: false },
+      ],
+      { danger },
+    );
   }
 
   _renderDialog(anchor) {
@@ -329,18 +342,62 @@ class PackingListCard extends HTMLElement {
     if (!d || d.anchor !== anchor) return "";
     return `<div class="panel dialog ${d.danger ? "danger" : ""}">
         <div class="msg">${esc(d.message)}</div>
-        <div class="row">
-          <button class="${d.danger ? "danger" : "primary"}" data-action="dialog-yes">${esc(d.yes)}</button>
-          <button data-action="dialog-no">${esc(d.no)}</button>
-        </div>
+        <div class="row">${d.buttons
+          .map(
+            (b, i) =>
+              `<button class="${b.style || ""}" data-action="dialog-choice" data-index="${i}">${esc(b.label)}</button>`,
+          )
+          .join("")}</div>
       </div>`;
   }
 
-  _closeDialog(answer) {
+  _closeDialog(index) {
     const d = this._dialog;
+    if (!d) return;
     this._dialog = null;
     this._render();
-    d?.resolve(answer);
+    d.resolve((d.buttons[index] ?? d.buttons.at(-1)).value);
+  }
+
+  // Master items not on the list that match tags/categories, split into new and previously deleted.
+  _matching(list, { tags = [], categories = [], includeAlways = false, uids = null }) {
+    const wantedTags = new Set(tags);
+    if (includeAlways) wantedTags.add(ALWAYS_TAG);
+    const wantedCats = new Set(categories.map((c) => c.toLowerCase()));
+    const excluded = new Set(list.excluded || []);
+    const result = { fresh: [], deleted: [] };
+    for (const m of this._data.master) {
+      const matches = uids
+        ? uids.includes(m.uid)
+        : m.tags.some((t) => wantedTags.has(t)) || (m.category && wantedCats.has(m.category.toLowerCase()));
+      if (!matches || this._listItemFor(list, m)) continue;
+      (excluded.has(m.uid) ? result.deleted : result.fresh).push(m);
+    }
+    return result;
+  }
+
+  // Ask whether previously deleted items should come along. Returns true/false, or null if cancelled.
+  async _askIncludeDeleted(anchor, list, criteria, label) {
+    const { fresh, deleted } = this._matching(list, criteria);
+    if (!deleted.length) return false;
+    const names = deleted.map((m) => m.summary).sort((a, b) => a.localeCompare(b, "da"));
+    const shown = names.slice(0, 5).join(", ") + (names.length > 5 ? ` og ${names.length - 5} flere` : "");
+    const message = fresh.length
+      ? `${deleted.length} af punkterne med ${label} har du tidligere slettet fra listen: ${shown}.\n` +
+        `Vil du også hente dem igen?`
+      : `Der er ingen nye punkter med ${label}, men ${deleted.length} som du tidligere har slettet fra listen: ${shown}.\n` +
+        `Vil du hente dem igen?`;
+    const buttons = fresh.length
+      ? [
+          { label: "Hent også de slettede", value: true, style: "primary" },
+          { label: `Kun nye punkter (${fresh.length})`, value: false },
+          { label: "Annuller", value: null },
+        ]
+      : [
+          { label: "Hent dem igen", value: true, style: "primary" },
+          { label: "Annuller", value: null },
+        ];
+    return this._choose(anchor, message, buttons);
   }
 
   // ------------------------------------------------------------------ render
@@ -521,17 +578,20 @@ class PackingListCard extends HTMLElement {
     ).join("");
     const criteria = this._refreshCriteria(list);
     const refresh = criteria.length
-      ? `<button data-action="refresh-list" title="Henter nye master-punkter med ${esc(criteria.join(", "))}. Punkter du har slettet fra listen kommer ikke med igen.">
+      ? `<button data-action="refresh-list" title="Henter nye master-punkter med ${esc(criteria.join(", "))}.">
           <ha-icon icon="mdi:refresh"></ha-icon> Hent igen</button>`
       : "";
+    const packed = list.items.filter((i) => i.packed).length;
     return `<div class="row tools">
         <select data-change="packedMode" title="Visning af pakkede punkter">${modes}</select>
         <div class="row">
           ${refresh}
           ${list.items.length ? `<button data-action="delete-mode" title="Vælg punkter der skal slettes"><ha-icon icon="mdi:delete-outline"></ha-icon> Slet punkter</button>` : ""}
-          <button data-action="reset-list">Nulstil</button>
+          <button data-action="reset-list" ${packed ? "" : "disabled"} title="Fjern fluebenet fra alle pakkede punkter">
+            <ha-icon icon="mdi:checkbox-blank-off-outline"></ha-icon> Fjern flueben</button>
         </div>
       </div>
+      ${this._renderDialog("pack-tools")}
       ${this._packNotice ? `<div class="notice">${esc(this._packNotice)}</div>` : ""}`;
   }
 
@@ -568,6 +628,7 @@ class PackingListCard extends HTMLElement {
       .map(
         ([cat, catItems]) =>
           `<div class="cat">${esc(cat)}<button class="link" data-action="pick-category" data-cat="${esc(cat)}">tilføj alle</button></div>` +
+          this._renderDialog(`cat:${cat}`) +
           catItems
             .map((m) => {
               const onList = this._listItemFor(list, m);
@@ -583,6 +644,7 @@ class PackingListCard extends HTMLElement {
       .join("");
     return `<div class="label">Tilføj alle punkter med tag:</div>
       <div class="chips">${chips || `<span class="muted small">Ingen tags endnu.</span>`}</div>
+      ${this._renderDialog("pick-tags")}
       ${groups || `<div class="empty">Master-listen er tom – tilføj punkter under "Master".</div>`}`;
   }
 
@@ -721,7 +783,7 @@ class PackingListCard extends HTMLElement {
           this._packNotice = null;
           this._editUid = null;
           this._toMasterUid = null;
-          if (this._dialog) this._closeDialog(false);
+          if (this._dialog) this._closeDialog(-1); // last button = cancel
           this._exitDeleteMode();
           this._render();
           break;
@@ -751,11 +813,8 @@ class PackingListCard extends HTMLElement {
           await this._fetch();
           break;
         }
-        case "dialog-yes":
-          this._closeDialog(true);
-          break;
-        case "dialog-no":
-          this._closeDialog(false);
+        case "dialog-choice":
+          this._closeDialog(Number(el.dataset.index));
           break;
         case "delete-list":
           if (
@@ -779,9 +838,18 @@ class PackingListCard extends HTMLElement {
           );
           break;
         }
-        case "reset-list":
-          await this._call("packing_list", "reset_list", { entity_id: list.entity_id });
+        case "reset-list": {
+          const packed = list.items.filter((i) => i.packed).length;
+          if (!packed) return;
+          const ok = await this._ask(
+            "pack-tools",
+            `Fjern fluebenet fra ${packed === 1 ? "det pakkede punkt" : `alle ${packed} pakkede punkter`} på "${list.name}"?\n` +
+              "Punkterne bliver på listen, men står som ikke pakket.",
+            { yes: "Fjern flueben", no: "Annuller" },
+          );
+          if (ok) await this._call("packing_list", "reset_list", { entity_id: list.entity_id });
           break;
+        }
         case "add-extra": {
           const summary = (f.extraItem || "").trim();
           if (!summary) return;
@@ -829,9 +897,24 @@ class PackingListCard extends HTMLElement {
           break;
         }
         case "refresh-list": {
-          const res = await this._callWithResponse("refresh_list", { entity_id: list.entity_id });
+          const criteria = {
+            tags: list.tags || [],
+            categories: list.categories || [],
+            includeAlways: !!list.include_always,
+          };
+          const include = await this._askIncludeDeleted(
+            "pack-tools",
+            list,
+            criteria,
+            this._refreshCriteria(list).join(", "),
+          );
+          if (include === null) return;
+          const res = await this._callWithResponse("refresh_list", {
+            entity_id: list.entity_id,
+            include_excluded: include,
+          });
           this._packNotice = res.added
-            ? `${res.added} ${res.added === 1 ? "nyt punkt" : "nye punkter"} hentet`
+            ? `${res.added} ${res.added === 1 ? "punkt" : "punkter"} hentet`
             : "Ingen nye punkter at hente";
           this._render();
           break;
@@ -876,19 +959,37 @@ class PackingListCard extends HTMLElement {
           }
           break;
         }
-        case "pick-tag":
-          await this._call("packing_list", "add_from_master", { entity_id: list.entity_id, tags: [el.dataset.tag] });
+        case "pick-tag": {
+          const tag = el.dataset.tag;
+          const include = await this._askIncludeDeleted("pick-tags", list, { tags: [tag] }, `#${tag}`);
+          if (include === null) return;
+          await this._call("packing_list", "add_from_master", {
+            entity_id: list.entity_id,
+            tags: [tag],
+            include_excluded: include,
+          });
           break;
-        case "pick-category":
-          // A real category is remembered for "Hent igen"; "Andet" (no category) is added item by item.
-          await this._call(
-            "packing_list",
-            "add_from_master",
-            el.dataset.cat === UNCATEGORIZED
-              ? { entity_id: list.entity_id, items: this._categoryUids(UNCATEGORIZED) }
-              : { entity_id: list.entity_id, categories: [el.dataset.cat] },
-          );
+        }
+        case "pick-category": {
+          const cat = el.dataset.cat;
+          const uncategorized = cat === UNCATEGORIZED;
+          const criteria = uncategorized ? { uids: this._categoryUids(UNCATEGORIZED) } : { categories: [cat] };
+          const include = await this._askIncludeDeleted(`cat:${cat}`, list, criteria, `kategorien "${cat}"`);
+          if (include === null) return;
+          if (uncategorized) {
+            // "Andet" has no category to remember, so its items are added one by one.
+            const { fresh, deleted } = this._matching(list, criteria);
+            const items = [...fresh, ...(include ? deleted : [])].map((m) => m.uid);
+            if (items.length) await this._call("packing_list", "add_from_master", { entity_id: list.entity_id, items });
+          } else {
+            await this._call("packing_list", "add_from_master", {
+              entity_id: list.entity_id,
+              categories: [cat],
+              include_excluded: include,
+            });
+          }
           break;
+        }
 
         // Master tab
         case "add-master":
