@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Packing lists",
+        "description": "Creates a master packing list and lets you build a packing list for each trip from it.",
+        "data": {
+          "seed_master": "Start with a suggested master list (Danish)"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Packing lists are already set up."
+    }
+  },
+  "services": {
+    "create_list": {
+      "name": "Create packing list",
+      "description": "Creates a new packing list and fills it from the master list.",
+      "fields": {
+        "name": { "name": "Name", "description": "Name of the packing list." },
+        "trip_date": { "name": "Trip date", "description": "Optional date of the trip." },
+        "tags": { "name": "Tags", "description": "Add all master items with any of these tags." },
+        "categories": { "name": "Categories", "description": "Add all master items in these categories." },
+        "items": { "name": "Items", "description": "Add these master items (summary or uid)." },
+        "include_always": { "name": "Include #altid", "description": "Also add every item tagged #altid (always)." }
+      }
+    },
+    "add_from_master": {
+      "name": "Add from master",
+      "description": "Adds items from the master list to a packing list. Items already on the list are skipped.",
+      "fields": {
+        "entity_id": { "name": "Packing list", "description": "The packing list to add to." },
+        "tags": { "name": "Tags", "description": "Add all master items with any of these tags." },
+        "categories": { "name": "Categories", "description": "Add all master items in these categories." },
+        "items": { "name": "Items", "description": "Add these master items (summary or uid)." },
+        "include_always": { "name": "Include #altid", "description": "Also add every item tagged #altid (always)." }
+      }
+    },
+    "reset_list": {
+      "name": "Reset packing list",
+      "description": "Marks every item on the packing list as not packed.",
+      "fields": {
+        "entity_id": { "name": "Packing list", "description": "The packing list to reset." }
+      }
+    },
+    "delete_list": {
+      "name": "Delete packing list",
+      "description": "Deletes the packing list and its entities.",
+      "fields": {
+        "entity_id": { "name": "Packing list", "description": "The packing list to delete." }
+      }
+    }
+  }
+}

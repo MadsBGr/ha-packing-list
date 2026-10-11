@@ -1,0 +1,75 @@
+create_list:
+  fields:
+    name:
+      required: true
+      example: "Skiferie 2027"
+      selector:
+        text:
+    trip_date:
+      selector:
+        date:
+    tags:
+      example: "ski, fly"
+      selector:
+        text:
+          multiple: true
+    categories:
+      example: "Tøj"
+      selector:
+        text:
+          multiple: true
+    items:
+      example: "Pas"
+      selector:
+        text:
+          multiple: true
+    include_always:
+      default: true
+      selector:
+        boolean:
+
+add_from_master:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
+    tags:
+      example: "strand"
+      selector:
+        text:
+          multiple: true
+    categories:
+      example: "Toilettaske"
+      selector:
+        text:
+          multiple: true
+    items:
+      example: "Solcreme"
+      selector:
+        text:
+          multiple: true
+    include_always:
+      default: false
+      selector:
+        boolean:
+
+reset_list:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
+
+delete_list:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo

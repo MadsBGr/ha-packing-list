@@ -1,0 +1,55 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Pakkelister",
+        "description": "Opretter en master-pakkeliste og lader dig lave pakkelister til hver tur ud fra den.",
+        "data": {
+          "seed_master": "Start med en foreslået master-liste"
+        }
+      }
+    },
+    "abort": {
+      "single_instance_allowed": "Pakkelister er allerede sat op."
+    }
+  },
+  "services": {
+    "create_list": {
+      "name": "Opret pakkeliste",
+      "description": "Opretter en ny pakkeliste og henter punkter fra master-listen.",
+      "fields": {
+        "name": { "name": "Navn", "description": "Navnet på pakkelisten." },
+        "trip_date": { "name": "Afrejsedato", "description": "Valgfri dato for turen." },
+        "tags": { "name": "Tags", "description": "Hent alle master-punkter med et af disse tags." },
+        "categories": { "name": "Kategorier", "description": "Hent alle master-punkter i disse kategorier." },
+        "items": { "name": "Punkter", "description": "Hent disse master-punkter (navn eller uid)." },
+        "include_always": { "name": "Medtag #altid", "description": "Hent også alle punkter med tagget #altid." }
+      }
+    },
+    "add_from_master": {
+      "name": "Hent fra master",
+      "description": "Tilføjer punkter fra master-listen til en pakkeliste. Punkter der allerede er på listen springes over.",
+      "fields": {
+        "entity_id": { "name": "Pakkeliste", "description": "Pakkelisten der skal tilføjes til." },
+        "tags": { "name": "Tags", "description": "Hent alle master-punkter med et af disse tags." },
+        "categories": { "name": "Kategorier", "description": "Hent alle master-punkter i disse kategorier." },
+        "items": { "name": "Punkter", "description": "Hent disse master-punkter (navn eller uid)." },
+        "include_always": { "name": "Medtag #altid", "description": "Hent også alle punkter med tagget #altid." }
+      }
+    },
+    "reset_list": {
+      "name": "Nulstil pakkeliste",
+      "description": "Markerer alle punkter på pakkelisten som ikke pakket.",
+      "fields": {
+        "entity_id": { "name": "Pakkeliste", "description": "Pakkelisten der skal nulstilles." }
+      }
+    },
+    "delete_list": {
+      "name": "Slet pakkeliste",
+      "description": "Sletter pakkelisten og dens entiteter.",
+      "fields": {
+        "entity_id": { "name": "Pakkeliste", "description": "Pakkelisten der skal slettes." }
+      }
+    }
+  }
+}
