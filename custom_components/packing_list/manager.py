@@ -37,6 +37,21 @@ def parse_description(description: str) -> tuple[str | None, list[str], str]:
     return category, tags, notes
 
 
+def build_description(category: str | None, tags: Iterable[str], notes: str = "") -> str:
+    """Inverse of parse_description."""
+    parts = []
+    if category and category.strip():
+        parts.append("@" + "_".join(category.split()))
+    parts.extend(f"#{tag}" for tag in dict.fromkeys(map(normalize_tag, tags)) if tag)
+    if notes.strip():
+        parts.append(notes.strip())
+    return " ".join(parts)
+
+
+def _same_category(a: str | None, b: str | None) -> bool:
+    return (a or "").strip().casefold() == (b or "").strip().casefold()
+
+
 def _new_uid() -> str:
     return uuid.uuid4().hex
 
@@ -82,15 +97,6 @@ class PackingList:
     items: list[PackingItem] = field(default_factory=list)
 
 
-@dataclass
-class PackingTemplate:
-    """A named selection of master items to start new lists from."""
-
-    template_id: str
-    name: str
-    items: list[str] = field(default_factory=list)  # master item uids
-
-
 class PackingListManager:
     """Owns all packing list data and notifies entities about changes."""
 
@@ -100,7 +106,6 @@ class PackingListManager:
         self._seed_master = seed_master
         self.master: list[PackingItem] = []
         self.lists: dict[str, PackingList] = {}
-        self.templates: dict[str, PackingTemplate] = {}
         self.revision = 0
         self._listeners: dict[str, list[Callable[[], None]]] = {}
 
@@ -125,15 +130,11 @@ class PackingListManager:
                 items=items,
             )
             self.lists[plist.list_id] = plist
-        for raw in data.get("templates", []):
-            template = PackingTemplate(**raw)
-            self.templates[template.template_id] = template
 
     def _data_to_save(self) -> dict[str, Any]:
         return {
             "master": [asdict(item) for item in self.master],
             "lists": [asdict(plist) for plist in self.lists.values()],
-            "templates": [asdict(template) for template in self.templates.values()],
         }
 
     def _schedule_save(self) -> None:
@@ -178,6 +179,14 @@ class PackingListManager:
                 return item
         raise KeyError(uid)
 
+    def find_master(self, ref: str) -> PackingItem:
+        """Find a master item by uid or (case-insensitive) name."""
+        key = ref.strip().casefold()
+        for item in self.master:
+            if item.uid == ref or item.summary.casefold() == key:
+                return item
+        raise KeyError(ref)
+
     @callback
     def create_item(
         self, key: str, summary: str, description: str = "", packed: bool = False
@@ -195,31 +204,105 @@ class PackingListManager:
 
     @callback
     def add_master_items(
-        self, summaries: Iterable[str], category: str | None = None, tags: Iterable[str] = ()
-    ) -> int:
+        self,
+        summaries: Iterable[str],
+        category: str | None = None,
+        tags: Iterable[str] = (),
+        move: Iterable[str] = (),
+    ) -> dict[str, int]:
         """Add several items to the master list sharing category and tags.
 
-        Items whose name already exists on the master list are skipped.
-        Returns the number of items added.
+        For names that already exist the new tags are added, and the item is
+        moved to ``category`` only if its name is in ``move``. Returns counts
+        of added, moved, tagged (got new tags) and skipped (unchanged) items.
         """
-        parts = []
-        if category and category.strip():
-            parts.append("@" + "_".join(category.split()))
-        parts.extend(f"#{tag}" for tag in dict.fromkeys(map(normalize_tag, tags)) if tag)
-        description = " ".join(parts)
+        tags = [tag for tag in dict.fromkeys(map(normalize_tag, tags)) if tag]
+        move_keys = {name.strip().casefold() for name in move}
+        counts = {"added": 0, "moved": 0, "tagged": 0, "skipped": 0}
+        seen: set[str] = set()
+        new_items = []
 
-        have = {item.summary.casefold() for item in self.master}
-        added = 0
         for summary in summaries:
             summary = summary.strip()
-            if not summary or summary.casefold() in have:
+            key = summary.casefold()
+            if not summary or key in seen:
                 continue
-            self.master.append(PackingItem(uid=_new_uid(), summary=summary, description=description))
-            have.add(summary.casefold())
-            added += 1
-        if added:
+            seen.add(key)
+            try:
+                existing = self.find_master(summary)
+            except KeyError:
+                new_items.append(
+                    PackingItem(
+                        uid=_new_uid(),
+                        summary=summary,
+                        description=build_description(category, tags),
+                    )
+                )
+                counts["added"] += 1
+                continue
+
+            old_category, old_tags, _ = parse_description(existing.description)
+            moved = (
+                key in move_keys
+                and bool(category and category.strip())
+                and not _same_category(old_category, category)
+            )
+            extra_tags = [tag for tag in tags if tag not in old_tags]
+            if not moved and not extra_tags:
+                counts["skipped"] += 1
+                continue
+            self._set_master_meta(
+                existing,
+                category=category if moved else old_category,
+                tags=[*old_tags, *extra_tags],
+            )
+            counts["moved" if moved else "tagged"] += 1
+
+        self.master.extend(new_items)
+        if new_items or counts["moved"] or counts["tagged"]:
             self._changed(MASTER_KEY)
-        return added
+        return counts
+
+    def _set_master_meta(
+        self, item: PackingItem, *, category: str | None, tags: Iterable[str]
+    ) -> None:
+        """Set category/tags of a master item and of its copies on trip lists."""
+        tags = list(tags)
+        item.description = build_description(category, tags, parse_description(item.description)[2])
+        for plist in self.lists.values():
+            touched = False
+            for list_item in plist.items:
+                if list_item.master_uid == item.uid:
+                    notes = parse_description(list_item.description)[2]
+                    list_item.description = build_description(category, tags, notes)
+                    touched = True
+            if touched:
+                self._changed(plist.list_id)
+
+    @callback
+    def update_master_item(
+        self,
+        uid: str,
+        *,
+        summary: str | None = None,
+        category: str | None = None,
+        tags: Iterable[str] | None = None,
+    ) -> None:
+        """Rename an item and/or change its category and tags.
+
+        ``None`` keeps the current value; an empty category removes it.
+        Category and tag changes are also applied to copies on trip lists.
+        """
+        item = self._find(MASTER_KEY, uid)
+        if summary is not None and summary.strip():
+            item.summary = summary.strip()
+        old_category, old_tags, _ = parse_description(item.description)
+        self._set_master_meta(
+            item,
+            category=old_category if category is None else category,
+            tags=old_tags if tags is None else tags,
+        )
+        self._changed(MASTER_KEY)
 
     @callback
     def update_item(
@@ -238,9 +321,6 @@ class PackingListManager:
         remove = set(uids)
         items = self.items_for(key)
         items[:] = [item for item in items if item.uid not in remove]
-        if key == MASTER_KEY:
-            for template in self.templates.values():
-                template.items = [uid for uid in template.items if uid not in remove]
         self._changed(key)
 
     @callback
@@ -278,41 +358,6 @@ class PackingListManager:
             item.packed = False
         self._changed(list_id)
 
-    def select_master(
-        self,
-        *,
-        items: Iterable[str] = (),
-        tags: Iterable[str] = (),
-        categories: Iterable[str] = (),
-        include_always: bool = False,
-        templates: Iterable[str] = (),
-    ) -> list[PackingItem]:
-        """Master items matching any of the criteria, in master order.
-
-        A master item matches if its uid or summary is in ``items``, it has
-        one of ``tags``, its category is in ``categories`` or it is part of
-        one of ``templates`` (template ids).
-        """
-        wanted_refs = {ref.strip().casefold() for ref in items}
-        for template_id in templates:
-            wanted_refs.update(self.templates[template_id].items)
-        wanted_tags = {normalize_tag(tag) for tag in tags}
-        if include_always:
-            wanted_tags.add(ALWAYS_TAG)
-        wanted_categories = {cat.strip().replace("_", " ").casefold() for cat in categories}
-
-        selected = []
-        for master_item in self.master:
-            category, item_tags, _ = parse_description(master_item.description)
-            if (
-                master_item.uid in wanted_refs
-                or master_item.summary.casefold() in wanted_refs
-                or wanted_tags.intersection(item_tags)
-                or (category is not None and category.casefold() in wanted_categories)
-            ):
-                selected.append(master_item)
-        return selected
-
     @callback
     def add_from_master(
         self,
@@ -322,27 +367,35 @@ class PackingListManager:
         tags: Iterable[str] = (),
         categories: Iterable[str] = (),
         include_always: bool = False,
-        templates: Iterable[str] = (),
     ) -> int:
         """Copy matching master items to a trip list, skipping duplicates.
 
-        See select_master for the matching rules. Returns the number of
-        items added.
+        A master item matches if its uid or summary is in ``items``, it has
+        one of ``tags``, or its category is in ``categories``. Returns the
+        number of items added.
         """
         plist = self.lists[list_id]
+        wanted_refs = {ref.strip().casefold() for ref in items}
+        wanted_tags = {normalize_tag(tag) for tag in tags}
+        if include_always:
+            wanted_tags.add(ALWAYS_TAG)
+        wanted_categories = {cat.strip().replace("_", " ").casefold() for cat in categories}
+
         have_master = {item.master_uid for item in plist.items if item.master_uid}
         have_summary = {item.summary.casefold() for item in plist.items}
 
         added = 0
-        for master_item in self.select_master(
-            items=items,
-            tags=tags,
-            categories=categories,
-            include_always=include_always,
-            templates=templates,
-        ):
+        for master_item in self.master:
             summary_key = master_item.summary.casefold()
             if master_item.uid in have_master or summary_key in have_summary:
+                continue
+            category, item_tags, _ = parse_description(master_item.description)
+            if not (
+                master_item.uid in wanted_refs
+                or summary_key in wanted_refs
+                or wanted_tags.intersection(item_tags)
+                or (category is not None and category.casefold() in wanted_categories)
+            ):
                 continue
             plist.items.append(
                 PackingItem(
@@ -359,62 +412,3 @@ class PackingListManager:
         if added:
             self._changed(list_id)
         return added
-
-    # ----------------------------------------------------------- templates
-    # Template changes are announced on the master key, so the card (which
-    # watches entity revisions) refreshes.
-
-    def find_template(self, ref: str) -> PackingTemplate:
-        """Find a template by id or (case-insensitive) name."""
-        if ref in self.templates:
-            return self.templates[ref]
-        for template in self.templates.values():
-            if template.name.casefold() == ref.strip().casefold():
-                return template
-        raise KeyError(ref)
-
-    def _check_template_name(self, name: str, template_id: str | None = None) -> str:
-        name = name.strip()
-        if not name:
-            raise ValueError("Skabelonen skal have et navn")
-        for template in self.templates.values():
-            if template.template_id != template_id and template.name.casefold() == name.casefold():
-                raise ValueError(f"Der findes allerede en skabelon med navnet {name}")
-        return name
-
-    @callback
-    def create_template(self, name: str, item_uids: Iterable[str] = ()) -> PackingTemplate:
-        """Create a template from master item uids."""
-        template = PackingTemplate(
-            template_id=_new_uid(),
-            name=self._check_template_name(name),
-            items=list(dict.fromkeys(item_uids)),
-        )
-        self.templates[template.template_id] = template
-        self._changed(MASTER_KEY)
-        return template
-
-    @callback
-    def update_template(
-        self,
-        template_id: str,
-        *,
-        name: str | None = None,
-        add: Iterable[str] = (),
-        remove: Iterable[str] = (),
-    ) -> None:
-        """Rename a template and/or add and remove master item uids."""
-        template = self.templates[template_id]
-        if name is not None:
-            template.name = self._check_template_name(name, template_id)
-        removed = set(remove)
-        template.items = [
-            uid for uid in dict.fromkeys([*template.items, *add]) if uid not in removed
-        ]
-        self._changed(MASTER_KEY)
-
-    @callback
-    def delete_template(self, template_id: str) -> None:
-        """Delete a template."""
-        self.templates.pop(template_id)
-        self._changed(MASTER_KEY)

@@ -8,11 +8,6 @@ create_list:
     trip_date:
       selector:
         date:
-    templates:
-      example: "Vandretur"
-      selector:
-        text:
-          multiple: true
     tags:
       example: "ski, fly"
       selector:
@@ -41,11 +36,6 @@ add_from_master:
         entity:
           integration: packing_list
           domain: todo
-    templates:
-      example: "Sommerhus"
-      selector:
-        text:
-          multiple: true
     tags:
       example: "strand"
       selector:
@@ -83,79 +73,32 @@ add_master_items:
       selector:
         text:
           multiple: true
-
-create_template:
-  fields:
-    name:
-      required: true
-      example: "Vandretur"
-      selector:
-        text:
-    templates:
-      example: "Weekend"
-      selector:
-        text:
-          multiple: true
-    tags:
-      example: "vandring"
-      selector:
-        text:
-          multiple: true
-    categories:
-      example: "Tøj"
-      selector:
-        text:
-          multiple: true
-    items:
-      example: "Vandrestøvler"
+    move:
+      example: "Bamse"
       selector:
         text:
           multiple: true
 
-update_template:
+update_master_item:
   fields:
-    template:
+    item:
       required: true
-      example: "Vandretur"
+      example: "Bamse"
       selector:
         text:
     name:
-      example: "Vandretur (lang)"
+      example: "Bamse (lille)"
       selector:
         text:
-    templates:
-      example: "Weekend"
+    category:
+      example: "Legetøj"
       selector:
         text:
-          multiple: true
     tags:
-      example: "vandring"
+      example: "børn, bil"
       selector:
         text:
           multiple: true
-    categories:
-      example: "Tøj"
-      selector:
-        text:
-          multiple: true
-    items:
-      example: "Vandrestøvler"
-      selector:
-        text:
-          multiple: true
-    remove_items:
-      example: "Badetøj"
-      selector:
-        text:
-          multiple: true
-
-delete_template:
-  fields:
-    template:
-      required: true
-      example: "Vandretur"
-      selector:
-        text:
 
 reset_list:
   fields:

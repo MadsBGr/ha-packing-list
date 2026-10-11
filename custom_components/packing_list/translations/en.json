@@ -18,79 +18,120 @@
       "name": "Create packing list",
       "description": "Creates a new packing list and fills it from the master list.",
       "fields": {
-        "name": { "name": "Name", "description": "Name of the packing list." },
-        "trip_date": { "name": "Trip date", "description": "Optional date of the trip." },
-        "templates": { "name": "Templates", "description": "Add all items of these templates (name or id)." },
-        "tags": { "name": "Tags", "description": "Add all master items with any of these tags." },
-        "categories": { "name": "Categories", "description": "Add all master items in these categories." },
-        "items": { "name": "Items", "description": "Add these master items (summary or uid)." },
-        "include_always": { "name": "Include #altid", "description": "Also add every item tagged #altid (always)." }
+        "name": {
+          "name": "Name",
+          "description": "Name of the packing list."
+        },
+        "trip_date": {
+          "name": "Trip date",
+          "description": "Optional date of the trip."
+        },
+        "tags": {
+          "name": "Tags",
+          "description": "Add all master items with any of these tags."
+        },
+        "categories": {
+          "name": "Categories",
+          "description": "Add all master items in these categories."
+        },
+        "items": {
+          "name": "Items",
+          "description": "Add these master items (summary or uid)."
+        },
+        "include_always": {
+          "name": "Include #altid",
+          "description": "Also add every item tagged #altid (always)."
+        }
       }
     },
     "add_from_master": {
       "name": "Add from master",
       "description": "Adds items from the master list to a packing list. Items already on the list are skipped.",
       "fields": {
-        "entity_id": { "name": "Packing list", "description": "The packing list to add to." },
-        "templates": { "name": "Templates", "description": "Add all items of these templates (name or id)." },
-        "tags": { "name": "Tags", "description": "Add all master items with any of these tags." },
-        "categories": { "name": "Categories", "description": "Add all master items in these categories." },
-        "items": { "name": "Items", "description": "Add these master items (summary or uid)." },
-        "include_always": { "name": "Include #altid", "description": "Also add every item tagged #altid (always)." }
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list to add to."
+        },
+        "tags": {
+          "name": "Tags",
+          "description": "Add all master items with any of these tags."
+        },
+        "categories": {
+          "name": "Categories",
+          "description": "Add all master items in these categories."
+        },
+        "items": {
+          "name": "Items",
+          "description": "Add these master items (summary or uid)."
+        },
+        "include_always": {
+          "name": "Include #altid",
+          "description": "Also add every item tagged #altid (always)."
+        }
       }
     },
     "add_master_items": {
       "name": "Add to master",
-      "description": "Adds one or more items to the master list sharing category and tags. Names that already exist are skipped.",
+      "description": "Adds one or more items to the master list sharing category and tags. Existing names get the new tags, and are moved to the category if listed in 'Move'.",
       "fields": {
-        "items": { "name": "Items", "description": "Names of the items (a list, or one per line)." },
-        "category": { "name": "Category", "description": "Category for all the items, e.g. Clothes." },
-        "tags": { "name": "Tags", "description": "Tags for all the items, e.g. summer, beach." }
-      }
-    },
-    "create_template": {
-      "name": "Create template",
-      "description": "Creates a template (e.g. Hiking) with a selection of master items.",
-      "fields": {
-        "name": { "name": "Name", "description": "Name of the template." },
-        "templates": { "name": "Templates", "description": "Include all items of these templates." },
-        "tags": { "name": "Tags", "description": "Include all master items with any of these tags." },
-        "categories": { "name": "Categories", "description": "Include all master items in these categories." },
-        "items": { "name": "Items", "description": "Include these master items (summary or uid)." }
-      }
-    },
-    "update_template": {
-      "name": "Update template",
-      "description": "Renames a template and/or adds and removes master items.",
-      "fields": {
-        "template": { "name": "Template", "description": "Name or id of the template." },
-        "name": { "name": "New name", "description": "Optional new name." },
-        "templates": { "name": "Templates", "description": "Add all items of these templates." },
-        "tags": { "name": "Tags", "description": "Add all master items with any of these tags." },
-        "categories": { "name": "Categories", "description": "Add all master items in these categories." },
-        "items": { "name": "Items", "description": "Add these master items (summary or uid)." },
-        "remove_items": { "name": "Remove items", "description": "Remove these master items from the template (summary or uid)." }
-      }
-    },
-    "delete_template": {
-      "name": "Delete template",
-      "description": "Deletes a template. Master items and existing packing lists are not affected.",
-      "fields": {
-        "template": { "name": "Template", "description": "Name or id of the template." }
+        "items": {
+          "name": "Items",
+          "description": "Names of the items (a list, or one per line)."
+        },
+        "category": {
+          "name": "Category",
+          "description": "Category for all the items, e.g. Clothes."
+        },
+        "tags": {
+          "name": "Tags",
+          "description": "Tags for all the items, e.g. summer, beach."
+        },
+        "move": {
+          "name": "Move",
+          "description": "Existing items that should be moved to the category."
+        }
       }
     },
     "reset_list": {
       "name": "Reset packing list",
       "description": "Marks every item on the packing list as not packed.",
       "fields": {
-        "entity_id": { "name": "Packing list", "description": "The packing list to reset." }
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list to reset."
+        }
       }
     },
     "delete_list": {
       "name": "Delete packing list",
       "description": "Deletes the packing list and its entities.",
       "fields": {
-        "entity_id": { "name": "Packing list", "description": "The packing list to delete." }
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list to delete."
+        }
+      }
+    },
+    "update_master_item": {
+      "name": "Update master item",
+      "description": "Changes name, category and/or tags of a master list item. Category and tags are also updated on packing lists.",
+      "fields": {
+        "item": {
+          "name": "Item",
+          "description": "Name or uid of the item."
+        },
+        "name": {
+          "name": "New name",
+          "description": "Optional new name."
+        },
+        "category": {
+          "name": "Category",
+          "description": "New category. Empty removes it, omitted keeps it."
+        },
+        "tags": {
+          "name": "Tags",
+          "description": "New tags (replace the old ones). Empty list removes all tags, omitted keeps them."
+        }
       }
     }
   }
