@@ -37,6 +37,15 @@
         "include_always": { "name": "Include #altid", "description": "Also add every item tagged #altid (always)." }
       }
     },
+    "add_master_items": {
+      "name": "Add to master",
+      "description": "Adds one or more items to the master list sharing category and tags. Names that already exist are skipped.",
+      "fields": {
+        "items": { "name": "Items", "description": "Names of the items (a list, or one per line)." },
+        "category": { "name": "Category", "description": "Category for all the items, e.g. Clothes." },
+        "tags": { "name": "Tags", "description": "Tags for all the items, e.g. summer, beach." }
+      }
+    },
     "reset_list": {
       "name": "Reset packing list",
       "description": "Marks every item on the packing list as not packed.",

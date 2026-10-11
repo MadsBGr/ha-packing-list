@@ -33,15 +33,27 @@ SERVICE_CREATE_LIST = "create_list"
 SERVICE_ADD_FROM_MASTER = "add_from_master"
 SERVICE_RESET_LIST = "reset_list"
 SERVICE_DELETE_LIST = "delete_list"
+SERVICE_ADD_MASTER_ITEMS = "add_master_items"
+
+ATTR_CATEGORY = "category"
 
 
-def _string_list(value: Any) -> list[str]:
-    """Accept a list or a comma separated string."""
-    if value is None:
-        return []
-    if isinstance(value, str):
-        value = value.split(",")
-    return [str(v).strip() for v in cv.ensure_list(value) if str(v).strip()]
+def _split_list(separator: str):
+    """Validator accepting a list or a string split on separator."""
+
+    def validate(value: Any) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, str):
+            value = value.split(separator)
+        return [str(v).strip() for v in cv.ensure_list(value) if str(v).strip()]
+
+    return validate
+
+
+# Tags etc. may be given comma separated; item names one per line (they may contain commas).
+_string_list = _split_list(",")
+_line_list = _split_list("\n")
 
 
 _SELECTION_SCHEMA = {
@@ -68,6 +80,14 @@ ADD_FROM_MASTER_SCHEMA = vol.Schema(
 )
 
 LIST_SCHEMA = vol.Schema({vol.Required(ATTR_ENTITY_ID): cv.entity_id})
+
+ADD_MASTER_ITEMS_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ITEMS): vol.All(_line_list, vol.Length(min=1)),
+        vol.Optional(ATTR_CATEGORY): cv.string,
+        vol.Optional(ATTR_TAGS, default=list): _string_list,
+    }
+)
 
 
 def get_manager(hass: HomeAssistant) -> PackingListManager:
@@ -153,6 +173,21 @@ def async_register_services(hass: HomeAssistant) -> None:
                 registry.async_remove(entry.entity_id)
         manager.delete_list(list_id)
 
+    async def add_master_items(call: ServiceCall) -> ServiceResponse:
+        manager = get_manager(hass)
+        items = call.data[ATTR_ITEMS]
+        added = manager.add_master_items(
+            items, call.data.get(ATTR_CATEGORY), call.data[ATTR_TAGS]
+        )
+        return {"added": added, "skipped": len(items) - added}
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADD_MASTER_ITEMS,
+        add_master_items,
+        schema=ADD_MASTER_ITEMS_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_CREATE_LIST,

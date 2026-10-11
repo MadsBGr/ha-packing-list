@@ -6,11 +6,26 @@
  *   title: Pakkeliste        # optional
  *   entity: todo.skiferie    # optional: list selected by default
  *   default_tab: pack        # optional: pack | pick | master
+ *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.1.1";
+const CARD_VERSION = "0.2.0";
 const UNCATEGORIZED = "Andet";
 const ALWAYS_TAG = "altid";
+const PACKED_MODES = [
+  ["inline", "Pakkede i kategorierne"],
+  ["bottom", "Pakkede nederst"],
+  ["hide", "Skjul pakkede"],
+];
+const PACKED_MODE_KEY = "packing-list-card.packed-mode";
+
+const loadPackedMode = () => {
+  try {
+    return localStorage.getItem(PACKED_MODE_KEY);
+  } catch {
+    return null;
+  }
+};
 
 const esc = (value) =>
   String(value ?? "").replace(
@@ -23,12 +38,15 @@ const STYLE = `
   .title { font-size: 1.4em; margin-bottom: 12px; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
   .header select { flex: 1; min-width: 140px; }
-  select, input:not([type=checkbox]) {
+  select, textarea, input:not([type=checkbox]) {
     font: inherit; padding: 8px; border-radius: 6px; box-sizing: border-box;
     border: 1px solid var(--divider-color); background: var(--card-background-color);
     color: var(--primary-text-color);
   }
   input:not([type=checkbox]) { flex: 1; min-width: 120px; }
+  textarea { resize: vertical; min-height: 4.5em; }
+  .cat.packed-head { margin-top: 20px; color: var(--success-color, var(--secondary-text-color)); }
+  .notice { color: var(--success-color, var(--primary-color)); font-size: .9em; }
   button {
     font: inherit; cursor: pointer; padding: 6px 12px; border-radius: 6px;
     border: 1px solid var(--divider-color); background: none; color: var(--primary-text-color);
@@ -70,8 +88,9 @@ class PackingListCard extends HTMLElement {
     this._data = null;
     this._sig = null;
     this._listId = null;
-    this._hidePacked = false;
+    this._packedMode = loadPackedMode();
     this._showNew = false;
+    this._notice = null;
     this._form = {};
     this._error = null;
     const root = this.shadowRoot;
@@ -85,7 +104,9 @@ class PackingListCard extends HTMLElement {
     });
     root.addEventListener("change", (ev) => this._onChange(ev));
     root.addEventListener("keydown", (ev) => {
-      if (ev.key === "Enter" && ev.target.dataset.enter) {
+      // In a textarea Enter makes a new line; Ctrl/Cmd+Enter submits.
+      const submit = ev.target.tagName === "TEXTAREA" ? ev.ctrlKey || ev.metaKey : true;
+      if (ev.key === "Enter" && submit && ev.target.dataset.enter) {
         ev.preventDefault();
         this._action(ev.target.dataset.enter, ev.target);
       }
@@ -95,6 +116,9 @@ class PackingListCard extends HTMLElement {
   setConfig(config) {
     this._config = config || {};
     this._tab = this._config.default_tab || "pack";
+    if (!PACKED_MODES.some(([mode]) => mode === this._packedMode)) {
+      this._packedMode = this._config.packed_mode || "inline";
+    }
     if (this._data) this._render();
   }
 
@@ -255,27 +279,33 @@ class PackingListCard extends HTMLElement {
     return this._tab === "pick" ? this._renderPick(list) : this._renderPack(list);
   }
 
+  _packRow(item) {
+    return `<div class="item ${item.packed ? "done" : ""}" data-action="toggle-packed" data-uid="${esc(item.uid)}">
+        ${this._checkbox(item.packed)}
+        <span class="name">${esc(item.summary)}${item.notes ? `<span class="notes">${esc(item.notes)}</span>` : ""}</span>
+      </div>`;
+  }
+
   _renderPack(list) {
-    const items = this._hidePacked ? list.items.filter((i) => !i.packed) : list.items;
-    const groups = this._group(items)
-      .map(
-        ([cat, catItems]) =>
-          `<div class="cat">${esc(cat)}</div>` +
-          catItems
-            .map(
-              (i) => `<div class="item ${i.packed ? "done" : ""}" data-action="toggle-packed" data-uid="${esc(i.uid)}">
-                ${this._checkbox(i.packed)}
-                <span class="name">${esc(i.summary)}${i.notes ? `<span class="notes">${esc(i.notes)}</span>` : ""}</span>
-              </div>`,
-            )
-            .join(""),
-      )
+    const mode = this._packedMode;
+    const packed = list.items.filter((i) => i.packed);
+    const shown = mode === "inline" ? list.items : list.items.filter((i) => !i.packed);
+    let groups = this._group(shown)
+      .map(([cat, catItems]) => `<div class="cat">${esc(cat)}</div>` + catItems.map((i) => this._packRow(i)).join(""))
       .join("");
+    if (mode === "bottom" && packed.length) {
+      // Packed items keep the category order so related things stay together.
+      const sorted = this._group(packed).flatMap(([, catItems]) => catItems);
+      groups += `<div class="cat packed-head">Pakket (${packed.length})</div>` + sorted.map((i) => this._packRow(i)).join("");
+    }
     const empty = list.items.length
       ? "Alt er pakket 🎉"
       : `Listen er tom – hent punkter under "Vælg fra master".`;
+    const modes = PACKED_MODES.map(
+      ([value, label]) => `<option value="${value}" ${value === mode ? "selected" : ""}>${label}</option>`,
+    ).join("");
     return `<div class="row tools">
-        <label class="check"><input type="checkbox" data-change="hidePacked" ${this._hidePacked ? "checked" : ""}> Skjul pakkede</label>
+        <select data-change="packedMode" title="Visning af pakkede punkter">${modes}</select>
         <button data-action="reset-list">Nulstil</button>
       </div>
       ${groups || `<div class="empty">${empty}</div>`}
@@ -336,11 +366,14 @@ class PackingListCard extends HTMLElement {
       )
       .join("");
     return `<div class="panel">
-        <input data-input="mName" data-enter="add-master" placeholder="Nyt punkt, f.eks. Badetøj" value="${esc(f.mName || "")}">
+        <div class="label">Tilføj et eller flere punkter – ét pr. linje. De får alle samme kategori og tags.</div>
+        <textarea data-input="mNames" data-enter="add-master" rows="4"
+          placeholder="Badetøj&#10;Badehåndklæde&#10;Klipklappere">${esc(f.mNames || "")}</textarea>
         <input data-input="mCat" list="pl-categories" placeholder="Kategori, f.eks. Tøj" value="${esc(f.mCat || "")}">
         <datalist id="pl-categories">${categories.map((c) => `<option value="${esc(c)}"></option>`).join("")}</datalist>
         <input data-input="mTags" data-enter="add-master" placeholder="Tags, f.eks. sommer, strand (altid = med på alle lister)" value="${esc(f.mTags || "")}">
-        <button class="primary" data-action="add-master">Tilføj til master</button>
+        <div class="row"><button class="primary" data-action="add-master">Tilføj til master</button>
+          ${this._notice ? `<span class="notice">${esc(this._notice)}</span>` : ""}</div>
       </div>
       ${groups || `<div class="empty">Master-listen er tom.</div>`}
       <div class="muted small">Tip: Punkter kan også redigeres i den almindelige to-do-visning
@@ -354,8 +387,13 @@ class PackingListCard extends HTMLElement {
     if (key === "select-list") {
       this._listId = ev.target.value;
       this._render();
-    } else if (key === "hidePacked") {
-      this._hidePacked = ev.target.checked;
+    } else if (key === "packedMode") {
+      this._packedMode = ev.target.value;
+      try {
+        localStorage.setItem(PACKED_MODE_KEY, this._packedMode);
+      } catch {
+        // Not persisted (private mode etc.) – the choice still applies until reload.
+      }
       this._render();
     } else if (key === "newAlways") {
       this._form.newAlways = ev.target.checked;
@@ -373,6 +411,7 @@ class PackingListCard extends HTMLElement {
       switch (action) {
         case "tab":
           this._tab = el.dataset.tab;
+          this._notice = null;
           this._render();
           break;
         case "toggle-new":
@@ -451,19 +490,22 @@ class PackingListCard extends HTMLElement {
           break;
         }
         case "add-master": {
-          const summary = (f.mName || "").trim();
-          if (!summary) return;
-          const parts = [];
-          const cat = (f.mCat || "").trim();
-          if (cat) parts.push(`@${cat.replace(/\s+/g, "_")}`);
-          for (const tag of (f.mTags || "").split(/[,\s]+/)) {
-            const clean = tag.replace(/^#/, "").trim();
-            if (clean) parts.push(`#${clean.toLowerCase()}`);
-          }
-          const data = { item: summary };
-          if (parts.length) data.description = parts.join(" ");
-          await this._call("todo", "add_item", data, { entity_id: this._data.master_entity_id });
-          this._form = { ...f, mName: "", mTags: "" };
+          const items = (f.mNames || "").split("\n").map((s) => s.trim()).filter(Boolean);
+          if (!items.length) return;
+          const data = { items, tags: (f.mTags || "").split(/[,\s]+/).filter(Boolean) };
+          if ((f.mCat || "").trim()) data.category = f.mCat.trim();
+          const result = await this._hass.callWS({
+            type: "call_service",
+            domain: "packing_list",
+            service: "add_master_items",
+            service_data: data,
+            return_response: true,
+          });
+          const { added = 0, skipped = 0 } = result?.response || {};
+          this._notice =
+            `${added} tilføjet` + (skipped ? `, ${skipped} fandtes allerede` : "");
+          // Keep category and tags so the next batch can reuse them.
+          this._form = { ...f, mNames: "" };
           this._render();
           break;
         }

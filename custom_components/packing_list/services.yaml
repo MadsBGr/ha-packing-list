@@ -56,6 +56,24 @@ add_from_master:
       selector:
         boolean:
 
+add_master_items:
+  fields:
+    items:
+      required: true
+      example: "Badetøj"
+      selector:
+        text:
+          multiple: true
+    category:
+      example: "Tøj"
+      selector:
+        text:
+    tags:
+      example: "sommer, strand"
+      selector:
+        text:
+          multiple: true
+
 reset_list:
   fields:
     entity_id:

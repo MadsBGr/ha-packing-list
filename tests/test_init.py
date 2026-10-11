@@ -118,6 +118,26 @@ async def test_data_survives_reload(hass: HomeAssistant, setup_entry) -> None:
     assert [i["summary"] for i in await _items(hass, entity_id)] == ["Pas"]
 
 
+async def test_add_master_items(hass: HomeAssistant, setup_entry) -> None:
+    response = await hass.services.async_call(
+        DOMAIN,
+        "add_master_items",
+        {"items": "Badehåndklæde\nKlipklappere\n\nbadetøj", "category": "Strand ting", "tags": "#Sommer, strand"},
+        blocking=True,
+        return_response=True,
+    )
+    assert response == {"added": 2, "skipped": 1}
+
+    items = {i["summary"]: i for i in await _items(hass, MASTER)}
+    assert items["Klipklappere"]["description"] == "@Strand_ting #sommer #strand"
+    assert len(items) == len(SEED_ITEMS) + 2
+
+    # The new items are picked up by tag.
+    entity_id = (await _create(hass, name="Sommer", tags=["strand"], include_always=False))["entity_id"]
+    summaries = {i["summary"] for i in await _items(hass, entity_id)}
+    assert {"Badehåndklæde", "Klipklappere", "Badetøj"} <= summaries
+
+
 async def test_websocket_data(hass: HomeAssistant, setup_entry, hass_ws_client) -> None:
     await _create(hass, name="Ws", items=["Pas"], include_always=False)
     client = await hass_ws_client(hass)

@@ -53,13 +53,17 @@ type: custom:packing-list-card
 title: Pakkeliste            # valgfri
 entity: todo.skiferie_2027   # valgfri: den liste, der vises først
 default_tab: pack            # valgfri: pack | pick | master
+packed_mode: bottom          # valgfri: inline | bottom | hide
 ```
 
 | Fane | Hvad du gør |
 |---|---|
-| **Pak** | Tryk på et punkt for at markere det som pakket. Skjul pakkede punkter, nulstil, tilføj ekstra punkter. |
+| **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Du kan også nulstille listen og tilføje ekstra punkter. |
 | **Vælg fra master** | Sæt flueben ved det, der skal med. "+ #tag" henter alle punkter med et tag, "tilføj alle" henter en hel kategori. |
-| **Master** | Tilføj og slet punkter i masteren med kategori og tags. |
+| **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Du kan også slette punkter. |
+
+Valget af visning for pakkede punkter huskes i den enkelte browser. `packed_mode` bestemmer kun, hvad der
+vises første gang.
 
 Med **+ Ny liste** opretter du en tur med navn, dato og de tags, der skal hentes.
 
@@ -86,6 +90,7 @@ Når et punkt kopieres til en tur, følger beskrivelsen med, så kategorierne og
 |---|---|
 | `packing_list.create_list` | Opret en liste: `name`, valgfrit `trip_date`, `tags`, `categories`, `items` og `include_always` (standard `true`). Returnerer `entity_id`. |
 | `packing_list.add_from_master` | Tilføj fra master til `entity_id` efter `tags`, `categories` eller `items` (navn eller uid). |
+| `packing_list.add_master_items` | Tilføj flere punkter til masteren på én gang: `items` (en liste eller ét pr. linje), valgfrit `category` og `tags`. Navne, der allerede findes, springes over. |
 | `packing_list.reset_list` | Markér alle punkter som ikke pakket. |
 | `packing_list.delete_list` | Slet listen og dens entiteter. |
 

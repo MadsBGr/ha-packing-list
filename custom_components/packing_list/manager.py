@@ -180,6 +180,34 @@ class PackingListManager:
         return item
 
     @callback
+    def add_master_items(
+        self, summaries: Iterable[str], category: str | None = None, tags: Iterable[str] = ()
+    ) -> int:
+        """Add several items to the master list sharing category and tags.
+
+        Items whose name already exists on the master list are skipped.
+        Returns the number of items added.
+        """
+        parts = []
+        if category and category.strip():
+            parts.append("@" + "_".join(category.split()))
+        parts.extend(f"#{tag}" for tag in dict.fromkeys(map(normalize_tag, tags)) if tag)
+        description = " ".join(parts)
+
+        have = {item.summary.casefold() for item in self.master}
+        added = 0
+        for summary in summaries:
+            summary = summary.strip()
+            if not summary or summary.casefold() in have:
+                continue
+            self.master.append(PackingItem(uid=_new_uid(), summary=summary, description=description))
+            have.add(summary.casefold())
+            added += 1
+        if added:
+            self._changed(MASTER_KEY)
+        return added
+
+    @callback
     def update_item(
         self, key: str, uid: str, summary: str, description: str, packed: bool
     ) -> None:

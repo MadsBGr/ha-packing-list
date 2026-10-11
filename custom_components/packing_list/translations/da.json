@@ -37,6 +37,15 @@
         "include_always": { "name": "Medtag #altid", "description": "Hent også alle punkter med tagget #altid." }
       }
     },
+    "add_master_items": {
+      "name": "Tilføj til master",
+      "description": "Tilføjer et eller flere punkter til master-listen med samme kategori og tags. Navne der allerede findes springes over.",
+      "fields": {
+        "items": { "name": "Punkter", "description": "Navnene på punkterne (en liste, eller ét pr. linje)." },
+        "category": { "name": "Kategori", "description": "Kategori for alle punkterne, f.eks. Tøj." },
+        "tags": { "name": "Tags", "description": "Tags for alle punkterne, f.eks. sommer, strand." }
+      }
+    },
     "reset_list": {
       "name": "Nulstil pakkeliste",
       "description": "Markerer alle punkter på pakkelisten som ikke pakket.",
