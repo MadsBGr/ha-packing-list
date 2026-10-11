@@ -6,7 +6,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.packing_list.const import DOMAIN, SEED_ITEMS, VERSION
+from custom_components.packing_list.const import DOMAIN, SEED_ITEMS_DA as SEED_ITEMS, VERSION
 from custom_components.packing_list.manager import parse_description
 
 MASTER = "todo.pakkeliste_master"

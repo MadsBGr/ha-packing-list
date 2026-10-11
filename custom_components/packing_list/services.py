@@ -139,12 +139,21 @@ COPY_TO_MASTER_SCHEMA = vol.Schema(
 )
 
 
+def _error(key: str, **placeholders: str) -> ServiceValidationError:
+    """A translated validation error (see "exceptions" in the translations)."""
+    return ServiceValidationError(
+        translation_domain=DOMAIN,
+        translation_key=key,
+        translation_placeholders=placeholders or None,
+    )
+
+
 def get_manager(hass: HomeAssistant) -> PackingListManager:
     """Return the manager of the loaded config entry."""
     for entry in hass.config_entries.async_entries(DOMAIN):
         if entry.state is ConfigEntryState.LOADED:
             return entry.runtime_data
-    raise ServiceValidationError("Pakkelister er ikke sat op")
+    raise _error("not_loaded")
 
 
 def list_entity_id(hass: HomeAssistant, list_id: str) -> str | None:
@@ -162,10 +171,10 @@ def _resolve_list_id(hass: HomeAssistant, manager: PackingListManager, entity_id
         or entry.domain != "todo"
         or not entry.unique_id.startswith(UNIQUE_ID_LIST_PREFIX)
     ):
-        raise ServiceValidationError(f"{entity_id} er ikke en pakkeliste")
+        raise _error("not_a_list", entity_id=entity_id)
     list_id = entry.unique_id.removeprefix(UNIQUE_ID_LIST_PREFIX)
     if list_id not in manager.lists:
-        raise ServiceValidationError(f"{entity_id} findes ikke længere")
+        raise _error("list_gone", entity_id=entity_id)
     return list_id
 
 
@@ -237,9 +246,7 @@ def async_register_services(hass: HomeAssistant) -> None:
         try:
             item = manager.find_master(call.data[ATTR_ITEM])
         except KeyError:
-            raise ServiceValidationError(
-                f"{call.data[ATTR_ITEM]} findes ikke på master-listen"
-            ) from None
+            raise _error("master_item_not_found", item=call.data[ATTR_ITEM]) from None
         category = call.data.get(ATTR_CATEGORY)
         if ATTR_CATEGORY in call.data and category is None:
             category = ""  # explicit null clears the category
@@ -318,7 +325,7 @@ def async_register_services(hass: HomeAssistant) -> None:
             None,
         )
         if item is None:
-            raise ServiceValidationError(f"{ref} findes ikke på pakkelisten")
+            raise _error("list_item_not_found", item=ref)
         master_item = manager.copy_to_master(
             list_id,
             item.uid,

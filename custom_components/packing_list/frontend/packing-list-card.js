@@ -1,6 +1,7 @@
 /*
  * Packing list card for the packing_list integration.
  * Served by the integration and registered automatically as a dashboard resource.
+ * The language follows the Home Assistant user setting (Danish or English; English otherwise).
  *
  *   type: custom:packing-list-card
  *   title: Pakkeliste        # optional
@@ -9,16 +10,215 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.8.0";
+const CARD_VERSION = "0.9.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
-const UNCATEGORIZED = "Andet";
-const ALWAYS_TAG = "altid";
-const PACKED_MODES = [
-  ["inline", "Pakkede i kategorierne"],
-  ["bottom", "Pakkede nederst"],
-  ["hide", "Skjul pakkede"],
-];
 const PACKED_MODE_KEY = "packing-list-card.packed-mode";
+const PACKED_MODES = ["inline", "bottom", "hide"];
+// Items without a category are grouped under this key (shown as "Andet"/"Other").
+const UNCATEGORIZED = "";
+// Tags meaning "include in every new list"; both work in every language.
+const ALWAYS_TAGS = ["altid", "always"];
+
+const STRINGS = {
+  en: {
+    title: "Packing list",
+    loading: "Loading…",
+    loadError: "Could not load packing lists: {error}",
+    versionWarning: "Packing lists was updated to {version}. Reload the browser (Ctrl+Shift+R).",
+    noLists: "No packing lists yet",
+    newList: "+ New list",
+    deleteList: "Delete list",
+    progress: "{packed} of {total} packed",
+    newListName: "Name, e.g. Ski trip 2027",
+    addWithTags: "Add items with tags:",
+    noMasterTags: "The master list has no tags yet.",
+    includeAlways: "Include items tagged #{tag}",
+    create: "Create",
+    cancel: "Cancel",
+    tabPack: "Pack",
+    tabPick: "Pick from master",
+    tabMaster: "Master",
+    createListFirst: 'Create a packing list with "+ New list".',
+    uncategorized: "Other",
+    packedInline: "Packed in their categories",
+    packedBottom: "Packed at the bottom",
+    packedHide: "Hide packed",
+    packedModeTitle: "How packed items are shown",
+    packedHeading: "Packed ({count})",
+    allPacked: "Everything is packed 🎉",
+    listEmpty: 'The list is empty – add items under "Pick from master".',
+    refresh: "Fetch again",
+    refreshTitle: "Adds new master items with {criteria}.",
+    deleteItems: "Delete items",
+    deleteItemsTitle: "Choose items to delete",
+    uncheck: "Uncheck all",
+    uncheckTitle: "Uncheck all packed items",
+    deleteHint: "Select the items to delete",
+    selectAll: "Select all",
+    deselectAll: "Deselect all",
+    delete: "Delete",
+    deleteCount: "Delete ({count})",
+    saveToMasterHeading: 'Save "{name}" to the master list',
+    categoryExample: "Category, e.g. Sports",
+    saveToMaster: "Save to master",
+    saveToMasterTitle: "Save to the master list",
+    alsoSaveToMaster: "Also save to the master list",
+    newItem: "New item for this list",
+    detailsTitle: "Category, tags and master",
+    add: "Add",
+    addAllWithTag: "Add all items with tag:",
+    noTags: "No tags yet.",
+    addAll: "add all",
+    deletedFromList: "deleted from list",
+    masterEmptyPick: 'The master list is empty – add items under "Master".',
+    name: "Name",
+    categoryOptional: "Category (empty = none)",
+    save: "Save",
+    editTitle: "Edit category and tags",
+    deleteFromMaster: "Delete from master",
+    masterAddHint: "Add one or more items – one per line. They all get the same category and tags.",
+    masterNamesExample: "Swimwear\nBeach towel\nFlip-flops",
+    masterCategoryExample: "Category, e.g. Clothes",
+    alwaysHint: "#{tag} = included in every new list",
+    addToMaster: "Add to master",
+    masterEmpty: "The master list is empty.",
+    resetMaster: "Reset to the default master list",
+    tagsPlaceholder: "Tags – pick below or type a new one (Enter/comma adds)",
+    remove: "Remove",
+    nAdded: "{count} added",
+    nMoved: "{count} moved",
+    nTagged: "{count} got new tags",
+    nSkipped: "{count} already existed",
+    nothingChanged: "Nothing changed",
+    fetchedOne: "1 item added",
+    fetchedMany: "{count} items added",
+    nothingFetched: "No new items to add",
+    moveQuestion: '"{name}" already exists in {from}.\nMove it to "{category}"?',
+    inCategory: 'the category "{category}"',
+    noCategory: "no category",
+    moveYes: "Move to {category}",
+    moveNo: "Keep category",
+    deleteListQuestion: 'Delete the packing list "{name}"?',
+    uncheckOne: 'Uncheck the packed item on "{name}"?',
+    uncheckMany: 'Uncheck all {count} packed items on "{name}"?',
+    uncheckNote: "The items stay on the list, marked as not packed.",
+    resetQuestion:
+      "Are you sure you want to reset the master list?\n\n" +
+      "All {count} items in the master list – with your own categories and tags – will be replaced by the " +
+      "default list. This cannot be undone.\nYour packing lists are not affected.",
+    resetYes: "Yes, reset the master list",
+    resetNo: "No, keep my list",
+    someDeletedOne: "One of the items with {label} was deleted from the list earlier: {names}.\nAdd it again too?",
+    someDeletedMany: "{count} of the items with {label} were deleted from the list earlier: {names}.\nAdd them again too?",
+    onlyDeletedOne: "There are no new items with {label}, but one you deleted from the list earlier: {names}.\nAdd it again?",
+    onlyDeletedMany: "There are no new items with {label}, but {count} you deleted from the list earlier: {names}.\nAdd them again?",
+    alsoDeletedOne: "Also add the deleted one",
+    alsoDeletedMany: "Also add the deleted ones",
+    onlyNew: "Only new items ({count})",
+    againOne: "Add it again",
+    againMany: "Add them again",
+    andMore: " and {count} more",
+  },
+  da: {
+    title: "Pakkeliste",
+    loading: "Indlæser…",
+    loadError: "Kunne ikke hente pakkelister: {error}",
+    versionWarning: "Pakkelister er opdateret til {version}. Genindlæs browseren (Ctrl+Shift+R).",
+    noLists: "Ingen pakkelister endnu",
+    newList: "+ Ny liste",
+    deleteList: "Slet liste",
+    progress: "{packed} af {total} pakket",
+    newListName: "Navn, f.eks. Skiferie 2027",
+    addWithTags: "Hent punkter med tags:",
+    noMasterTags: "Master-listen har ingen tags endnu.",
+    includeAlways: "Medtag punkter med #{tag}",
+    create: "Opret",
+    cancel: "Annuller",
+    tabPack: "Pak",
+    tabPick: "Vælg fra master",
+    tabMaster: "Master",
+    createListFirst: 'Opret en pakkeliste med "+ Ny liste".',
+    uncategorized: "Andet",
+    packedInline: "Pakkede i kategorierne",
+    packedBottom: "Pakkede nederst",
+    packedHide: "Skjul pakkede",
+    packedModeTitle: "Visning af pakkede punkter",
+    packedHeading: "Pakket ({count})",
+    allPacked: "Alt er pakket 🎉",
+    listEmpty: 'Listen er tom – hent punkter under "Vælg fra master".',
+    refresh: "Hent igen",
+    refreshTitle: "Henter nye master-punkter med {criteria}.",
+    deleteItems: "Slet punkter",
+    deleteItemsTitle: "Vælg punkter der skal slettes",
+    uncheck: "Fjern flueben",
+    uncheckTitle: "Fjern fluebenet fra alle pakkede punkter",
+    deleteHint: "Markér de punkter, der skal slettes",
+    selectAll: "Vælg alle",
+    deselectAll: "Fravælg alle",
+    delete: "Slet",
+    deleteCount: "Slet ({count})",
+    saveToMasterHeading: 'Gem "{name}" i master-listen',
+    categoryExample: "Kategori, f.eks. Sport",
+    saveToMaster: "Gem i master",
+    saveToMasterTitle: "Gem i master-listen",
+    alsoSaveToMaster: "Gem også i master-listen",
+    newItem: "Nyt punkt til denne liste",
+    detailsTitle: "Kategori, tags og master",
+    add: "Tilføj",
+    addAllWithTag: "Tilføj alle punkter med tag:",
+    noTags: "Ingen tags endnu.",
+    addAll: "tilføj alle",
+    deletedFromList: "slettet fra listen",
+    masterEmptyPick: 'Master-listen er tom – tilføj punkter under "Master".',
+    name: "Navn",
+    categoryOptional: "Kategori (tom = ingen)",
+    save: "Gem",
+    editTitle: "Ret kategori og tags",
+    deleteFromMaster: "Slet fra master",
+    masterAddHint: "Tilføj et eller flere punkter – ét pr. linje. De får alle samme kategori og tags.",
+    masterNamesExample: "Badetøj\nBadehåndklæde\nKlipklappere",
+    masterCategoryExample: "Kategori, f.eks. Tøj",
+    alwaysHint: "#{tag} = kommer med på alle nye lister",
+    addToMaster: "Tilføj til master",
+    masterEmpty: "Master-listen er tom.",
+    resetMaster: "Nulstil til standard master-liste",
+    tagsPlaceholder: "Tags – vælg herunder eller skriv et nyt (Enter/komma tilføjer)",
+    remove: "Fjern",
+    nAdded: "{count} tilføjet",
+    nMoved: "{count} flyttet",
+    nTagged: "{count} fik nye tags",
+    nSkipped: "{count} fandtes allerede",
+    nothingChanged: "Intet ændret",
+    fetchedOne: "1 punkt hentet",
+    fetchedMany: "{count} punkter hentet",
+    nothingFetched: "Ingen nye punkter at hente",
+    moveQuestion: '"{name}" findes allerede i {from}.\nSkal den flyttes til "{category}"?',
+    inCategory: 'kategorien "{category}"',
+    noCategory: "ingen kategori",
+    moveYes: "Flyt til {category}",
+    moveNo: "Behold kategori",
+    deleteListQuestion: 'Slet pakkelisten "{name}"?',
+    uncheckOne: 'Fjern fluebenet fra det pakkede punkt på "{name}"?',
+    uncheckMany: 'Fjern fluebenet fra alle {count} pakkede punkter på "{name}"?',
+    uncheckNote: "Punkterne bliver på listen, men står som ikke pakket.",
+    resetQuestion:
+      "Er du sikker på, at du vil nulstille master-listen?\n\n" +
+      "Alle {count} punkter i masteren – med dine egne kategorier og tags – bliver erstattet af standardlisten. " +
+      "Det kan ikke fortrydes.\nDine pakkelister berøres ikke.",
+    resetYes: "Ja, nulstil master-listen",
+    resetNo: "Nej, behold min liste",
+    someDeletedOne: "Et af punkterne med {label} har du tidligere slettet fra listen: {names}.\nVil du også hente den igen?",
+    someDeletedMany: "{count} af punkterne med {label} har du tidligere slettet fra listen: {names}.\nVil du også hente dem igen?",
+    onlyDeletedOne: "Der er ingen nye punkter med {label}, men et, som du tidligere har slettet fra listen: {names}.\nVil du hente den igen?",
+    onlyDeletedMany: "Der er ingen nye punkter med {label}, men {count}, som du tidligere har slettet fra listen: {names}.\nVil du hente dem igen?",
+    alsoDeletedOne: "Hent også den slettede",
+    alsoDeletedMany: "Hent også de slettede",
+    onlyNew: "Kun nye punkter ({count})",
+    againOne: "Hent den igen",
+    againMany: "Hent dem igen",
+    andMore: " og {count} flere",
+  },
+};
 
 const esc = (value) =>
   String(value ?? "").replace(
@@ -26,7 +226,6 @@ const esc = (value) =>
     (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c],
   );
 
-const byName = (a, b) => a.summary.localeCompare(b.summary, "da");
 const sameText = (a, b) => (a || "").trim().toLowerCase() === (b || "").trim().toLowerCase();
 const splitTags = (text) =>
   (text || "")
@@ -97,7 +296,6 @@ const STYLE = `
   .dialog { border: 1px solid var(--primary-color); }
   .dialog.danger { border-color: var(--error-color, #db4437); background: rgba(219, 68, 55, .08); }
   .dialog .msg { white-space: pre-line; }
-  .item .name + button.icon { margin-left: auto; }
   .excluded { font-size: .75em; color: var(--secondary-text-color); font-style: italic; }
   .tagpicker { display: flex; flex-direction: column; gap: 6px; }
   .tagpicker .chip.on .x { margin-left: 4px; opacity: .8; }
@@ -108,6 +306,7 @@ class PackingListCard extends HTMLElement {
   constructor() {
     super();
     this.attachShadow({ mode: "open" });
+    this._lang = "en";
     this._data = null;
     this._sig = null;
     this._listId = null;
@@ -147,10 +346,16 @@ class PackingListCard extends HTMLElement {
     });
   }
 
+  // Translate a key, filling in {placeholders}.
+  _t(key, params = {}) {
+    const text = STRINGS[this._lang][key] ?? STRINGS.en[key] ?? key;
+    return text.replace(/\{(\w+)\}/g, (match, name) => (name in params ? params[name] : match));
+  }
+
   setConfig(config) {
     this._config = config || {};
     this._tab = this._config.default_tab || "pack";
-    if (!PACKED_MODES.some(([mode]) => mode === this._packedMode)) {
+    if (!PACKED_MODES.includes(this._packedMode)) {
       this._packedMode = this._config.packed_mode || "inline";
     }
     if (this._data) this._render();
@@ -166,6 +371,11 @@ class PackingListCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    const code = (hass.locale?.language || hass.language || "en").toLowerCase().split("-")[0];
+    const lang = code in STRINGS ? code : "en";
+    const languageChanged = lang !== this._lang;
+    this._lang = lang;
+
     // Refetch when any packing list entity reports a new revision or one appears/disappears.
     let revision = 0;
     let count = 0;
@@ -183,6 +393,8 @@ class PackingListCard extends HTMLElement {
     if (sig !== this._sig) {
       this._sig = sig;
       this._fetch();
+    } else if (languageChanged && this._data) {
+      this._render();
     }
   }
 
@@ -200,7 +412,7 @@ class PackingListCard extends HTMLElement {
     } catch {
       // No sessionStorage: can't guard against loops, so ask instead of reloading.
     }
-    this._versionWarning = `Pakkelister er opdateret til ${version}. Genindlæs browseren (Ctrl+Shift+R).`;
+    this._versionWarning = { version };
     this._render();
   }
 
@@ -209,7 +421,7 @@ class PackingListCard extends HTMLElement {
       this._data = await this._hass.callWS({ type: "packing_list/data" });
       this._error = null;
     } catch (err) {
-      this._error = `Kunne ikke hente pakkelister: ${err.message || err}`;
+      this._error = this._t("loadError", { error: err.message || err });
     }
     this._ensureList();
     this._render();
@@ -227,12 +439,55 @@ class PackingListCard extends HTMLElement {
     return this._data?.lists.find((l) => l.list_id === this._listId) || null;
   }
 
-  // Tags used on the master list; #altid is left out where it can't be used for picking.
+  _byName(a, b) {
+    return a.summary.localeCompare(b.summary, this._lang);
+  }
+
+  // The "always" tag to show: whichever the master list uses, else the one for the UI language.
+  get _alwaysTag() {
+    const used = new Set((this._data?.master || []).flatMap((m) => m.tags));
+    return ALWAYS_TAGS.find((t) => used.has(t)) || (this._lang === "da" ? "altid" : "always");
+  }
+
+  // Tags used on the master list; the "always" tags are left out where they can't be used for picking.
   _allTags(includeAlways = false) {
     const tags = new Set();
     for (const item of this._data?.master || []) item.tags.forEach((t) => tags.add(t));
-    if (!includeAlways) tags.delete(ALWAYS_TAG);
-    return [...tags].sort((a, b) => a.localeCompare(b, "da"));
+    if (!includeAlways) ALWAYS_TAGS.forEach((t) => tags.delete(t));
+    return [...tags].sort((a, b) => a.localeCompare(b, this._lang));
+  }
+
+  _categories() {
+    return [...new Set((this._data?.master || []).map((m) => m.category).filter(Boolean))].sort((a, b) =>
+      a.localeCompare(b, this._lang),
+    );
+  }
+
+  _categoryLabel(cat) {
+    return cat === UNCATEGORIZED ? this._t("uncategorized") : cat;
+  }
+
+  // Items grouped by category; categories and items sorted alphabetically, uncategorized last.
+  _group(items) {
+    const groups = new Map();
+    for (const item of items) {
+      const cat = item.category || UNCATEGORIZED;
+      if (!groups.has(cat)) groups.set(cat, []);
+      groups.get(cat).push(item);
+    }
+    for (const catItems of groups.values()) catItems.sort((a, b) => this._byName(a, b));
+    return [...groups.entries()].sort(([a], [b]) =>
+      a === UNCATEGORIZED ? 1 : b === UNCATEGORIZED ? -1 : a.localeCompare(b, this._lang),
+    );
+  }
+
+  _checkbox(on) {
+    return `<ha-icon icon="${on ? "mdi:checkbox-marked" : "mdi:checkbox-blank-outline"}"></ha-icon>`;
+  }
+
+  _exitDeleteMode() {
+    this._deleteMode = false;
+    this._selected = new Set();
   }
 
   // ------------------------------------------------------------ tag picker
@@ -243,14 +498,14 @@ class PackingListCard extends HTMLElement {
     const chips = selected
       .map(
         (t) =>
-          `<button class="chip on" data-action="tag-remove" data-key="${key}" data-tag="${esc(t)}" title="Fjern">#${esc(t)}<span class="x">×</span></button>`,
+          `<button class="chip on" data-action="tag-remove" data-key="${key}" data-tag="${esc(t)}" title="${esc(this._t("remove"))}">#${esc(t)}<span class="x">×</span></button>`,
       )
       .join("");
     const autofocus = this._focusTagKey === key ? "data-autofocus" : "";
     return `<div class="tagpicker">
         ${chips ? `<div class="chips">${chips}</div>` : ""}
         <input data-input="${key}Draft" data-tagkey="${key}" data-enter="tag-add" data-submit="${submitAction}" ${autofocus}
-          placeholder="Tags – vælg herunder eller skriv et nyt (Enter/komma tilføjer)" value="${esc(this._form[`${key}Draft`] || "")}">
+          placeholder="${esc(this._t("tagsPlaceholder"))}" value="${esc(this._form[`${key}Draft`] || "")}">
         <div class="chips suggest" data-suggest="${key}">${this._suggestionChips(key)}</div>
       </div>`;
   }
@@ -285,53 +540,26 @@ class PackingListCard extends HTMLElement {
     return [...new Set([...(this._form[key] || []), ...splitTags(this._form[`${key}Draft`])])];
   }
 
-  _categories() {
-    return [...new Set((this._data?.master || []).map((m) => m.category).filter(Boolean))].sort((a, b) =>
-      a.localeCompare(b, "da"),
-    );
-  }
-
-  // Items grouped by category; categories and items sorted alphabetically, "Andet" last.
-  _group(items) {
-    const groups = new Map();
-    for (const item of items) {
-      const cat = item.category || UNCATEGORIZED;
-      if (!groups.has(cat)) groups.set(cat, []);
-      groups.get(cat).push(item);
-    }
-    for (const catItems of groups.values()) catItems.sort(byName);
-    return [...groups.entries()].sort(([a], [b]) =>
-      a === UNCATEGORIZED ? 1 : b === UNCATEGORIZED ? -1 : a.localeCompare(b, "da"),
-    );
-  }
-
-  _checkbox(on) {
-    return `<ha-icon icon="${on ? "mdi:checkbox-marked" : "mdi:checkbox-blank-outline"}"></ha-icon>`;
-  }
-
-  _exitDeleteMode() {
-    this._deleteMode = false;
-    this._selected = new Set();
-  }
-
+  // ---------------------------------------------------------------- dialogs
   // In-card confirmation (native confirm() can be suppressed, e.g. in the companion app).
   // The dialog is rendered where _renderDialog(anchor) is placed, next to what triggered it.
+
   // Resolves with the value of the chosen button; the last button is the "cancel" one.
   _choose(anchor, message, buttons, { danger = false } = {}) {
-    this._dialog?.resolve(buttons.at(-1).value);
+    this._dialog?.resolve(this._dialog.buttons.at(-1).value);
     return new Promise((resolve) => {
       this._dialog = { anchor, message, buttons, danger, resolve };
       this._render();
     });
   }
 
-  _ask(anchor, message, { yes = "OK", no = "Annuller", danger = false } = {}) {
+  _ask(anchor, message, { yes, no, danger = false } = {}) {
     return this._choose(
       anchor,
       message,
       [
         { label: yes, value: true, style: danger ? "danger" : "primary" },
-        { label: no, value: false },
+        { label: no ?? this._t("cancel"), value: false },
       ],
       { danger },
     );
@@ -362,7 +590,7 @@ class PackingListCard extends HTMLElement {
   // Master items not on the list that match tags/categories, split into new and previously deleted.
   _matching(list, { tags = [], categories = [], includeAlways = false, uids = null }) {
     const wantedTags = new Set(tags);
-    if (includeAlways) wantedTags.add(ALWAYS_TAG);
+    if (includeAlways) ALWAYS_TAGS.forEach((t) => wantedTags.add(t));
     const wantedCats = new Set(categories.map((c) => c.toLowerCase()));
     const excluded = new Set(list.excluded || []);
     const result = { fresh: [], deleted: [] };
@@ -380,35 +608,30 @@ class PackingListCard extends HTMLElement {
   async _askIncludeDeleted(anchor, list, criteria, label) {
     const { fresh, deleted } = this._matching(list, criteria);
     if (!deleted.length) return false;
-    const names = deleted.map((m) => m.summary).sort((a, b) => a.localeCompare(b, "da"));
-    const shown = names.slice(0, 5).join(", ") + (names.length > 5 ? ` og ${names.length - 5} flere` : "");
     const one = deleted.length === 1;
-    const them = one ? "den" : "dem";
-    const message = fresh.length
-      ? `${one ? "Et" : deleted.length} af punkterne med ${label} har du tidligere slettet fra listen: ${shown}.\n` +
-        `Vil du også hente ${them} igen?`
-      : `Der er ingen nye punkter med ${label}, men ${one ? "et" : deleted.length}, som du tidligere har slettet fra listen: ${shown}.\n` +
-        `Vil du hente ${them} igen?`;
-    const buttons = fresh.length
-      ? [
-          { label: one ? "Hent også den slettede" : "Hent også de slettede", value: true, style: "primary" },
-          { label: `Kun nye punkter (${fresh.length})`, value: false },
-          { label: "Annuller", value: null },
-        ]
-      : [
-          { label: `Hent ${them} igen`, value: true, style: "primary" },
-          { label: "Annuller", value: null },
-        ];
-    return this._choose(anchor, message, buttons);
+    const names = deleted.map((m) => m.summary).sort((a, b) => a.localeCompare(b, this._lang));
+    const shown = names.slice(0, 5).join(", ") + (names.length > 5 ? this._t("andMore", { count: names.length - 5 }) : "");
+    const params = { label, names: shown, count: deleted.length };
+    if (fresh.length) {
+      return this._choose(anchor, this._t(one ? "someDeletedOne" : "someDeletedMany", params), [
+        { label: this._t(one ? "alsoDeletedOne" : "alsoDeletedMany"), value: true, style: "primary" },
+        { label: this._t("onlyNew", { count: fresh.length }), value: false },
+        { label: this._t("cancel"), value: null },
+      ]);
+    }
+    return this._choose(anchor, this._t(one ? "onlyDeletedOne" : "onlyDeletedMany", params), [
+      { label: this._t(one ? "againOne" : "againMany"), value: true, style: "primary" },
+      { label: this._t("cancel"), value: null },
+    ]);
   }
 
   // ------------------------------------------------------------------ render
 
   _render() {
-    const title = this._config.title ?? "Pakkeliste";
+    const title = this._config.title ?? this._t("title");
     let body;
     if (!this._data) {
-      body = this._error ? "" : `<div class="empty">Indlæser…</div>`;
+      body = this._error ? "" : `<div class="empty">${esc(this._t("loading"))}</div>`;
     } else {
       body =
         this._renderHeader() +
@@ -416,7 +639,8 @@ class PackingListCard extends HTMLElement {
         this._renderTabs() +
         this._renderTab();
     }
-    const error = [this._versionWarning, this._error]
+    const warning = this._versionWarning ? this._t("versionWarning", this._versionWarning) : null;
+    const error = [warning, this._error]
       .filter(Boolean)
       .map((msg) => `<div class="error">${esc(msg)}</div>`)
       .join("");
@@ -437,7 +661,7 @@ class PackingListCard extends HTMLElement {
               `${esc(l.name)}${l.trip_date ? ` (${esc(l.trip_date)})` : ""}</option>`,
           )
           .join("")}</select>`
-      : `<span class="muted" style="flex:1">Ingen pakkelister endnu</span>`;
+      : `<span class="muted" style="flex:1">${esc(this._t("noLists"))}</span>`;
 
     let progress = "";
     if (list) {
@@ -445,11 +669,11 @@ class PackingListCard extends HTMLElement {
       const packed = list.items.filter((i) => i.packed).length;
       const pct = total ? Math.round((packed * 100) / total) : 0;
       progress = `<div class="progress"><div class="bar"><div style="width:${pct}%"></div></div>
-        <span>${packed} af ${total} pakket</span></div>`;
+        <span>${esc(this._t("progress", { packed, total }))}</span></div>`;
     }
     return `<div class="row header">${select}
-        <button data-action="toggle-new" class="${this._showNew ? "active" : ""}">+ Ny liste</button>
-        ${list ? `<button class="icon" data-action="delete-list" title="Slet liste"><ha-icon icon="mdi:delete-outline"></ha-icon></button>` : ""}
+        <button data-action="toggle-new" class="${this._showNew ? "active" : ""}">${esc(this._t("newList"))}</button>
+        ${list ? `<button class="icon" data-action="delete-list" title="${esc(this._t("deleteList"))}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>` : ""}
       </div>${this._renderDialog("header")}${progress}`;
   }
 
@@ -463,33 +687,40 @@ class PackingListCard extends HTMLElement {
       )
       .join("");
     return `<div class="panel">
-      <input data-input="newName" data-enter="create-list" placeholder="Navn, f.eks. Skiferie 2027" value="${esc(f.newName || "")}">
+      <input data-input="newName" data-enter="create-list" placeholder="${esc(this._t("newListName"))}" value="${esc(f.newName || "")}">
       <input type="date" data-input="newDate" value="${esc(f.newDate || "")}">
-      <div class="label">Hent punkter med tags:</div>
-      <div class="chips">${chips || `<span class="muted small">Master-listen har ingen tags endnu.</span>`}</div>
+      <div class="label">${esc(this._t("addWithTags"))}</div>
+      <div class="chips">${chips || `<span class="muted small">${esc(this._t("noMasterTags"))}</span>`}</div>
       <label class="check"><input type="checkbox" data-change="newAlways" ${f.newAlways !== false ? "checked" : ""}>
-        Medtag punkter med #${ALWAYS_TAG}</label>
-      <div class="row"><button class="primary" data-action="create-list">Opret</button>
-        <button data-action="toggle-new">Annuller</button></div>
+        ${esc(this._t("includeAlways", { tag: this._alwaysTag }))}</label>
+      <div class="row"><button class="primary" data-action="create-list">${esc(this._t("create"))}</button>
+        <button data-action="toggle-new">${esc(this._t("cancel"))}</button></div>
     </div>`;
   }
 
   _renderTabs() {
     const tabs = [
-      ["pack", "Pak"],
-      ["pick", "Vælg fra master"],
-      ["master", "Master"],
+      ["pack", "tabPack"],
+      ["pick", "tabPick"],
+      ["master", "tabMaster"],
     ];
     return `<div class="tabs">${tabs
-      .map(([key, label]) => `<button data-action="tab" data-tab="${key}" class="${this._tab === key ? "on" : ""}">${label}</button>`)
+      .map(
+        ([key, label]) =>
+          `<button data-action="tab" data-tab="${key}" class="${this._tab === key ? "on" : ""}">${esc(this._t(label))}</button>`,
+      )
       .join("")}</div>`;
   }
 
   _renderTab() {
     if (this._tab === "master") return this._renderMaster();
     const list = this._list;
-    if (!list) return `<div class="empty">Opret en pakkeliste med "+ Ny liste".</div>`;
+    if (!list) return `<div class="empty">${esc(this._t("createListFirst"))}</div>`;
     return this._tab === "pick" ? this._renderPick(list) : this._renderPack(list);
+  }
+
+  _categoryDatalist() {
+    return `<datalist id="pl-categories">${this._categories().map((c) => `<option value="${esc(c)}"></option>`).join("")}</datalist>`;
   }
 
   // ---------------------------------------------------------------- pack tab
@@ -509,15 +740,15 @@ class PackingListCard extends HTMLElement {
     }
     if (item.uid === this._toMasterUid) {
       return `<div class="item editing">
-          <div class="label">Gem "${esc(item.summary)}" i master-listen</div>
-          <input data-input="cCat" data-enter="save-to-master" list="pl-categories" data-autofocus placeholder="Kategori, f.eks. Sport" value="${esc(this._form.cCat)}">
+          <div class="label">${esc(this._t("saveToMasterHeading", { name: item.summary }))}</div>
+          <input data-input="cCat" data-enter="save-to-master" list="pl-categories" data-autofocus placeholder="${esc(this._t("categoryExample"))}" value="${esc(this._form.cCat)}">
           ${this._renderTagPicker("cTags", "save-to-master")}
-          <div class="row"><button class="primary" data-action="save-to-master">Gem i master</button>
-            <button data-action="cancel-to-master">Annuller</button></div>
+          <div class="row"><button class="primary" data-action="save-to-master">${esc(this._t("saveToMaster"))}</button>
+            <button data-action="cancel-to-master">${esc(this._t("cancel"))}</button></div>
         </div>`;
     }
     const toMaster = this._notInMaster(item)
-      ? `<button class="icon" data-action="open-to-master" data-uid="${esc(item.uid)}" title="Gem i master-listen">
+      ? `<button class="icon" data-action="open-to-master" data-uid="${esc(item.uid)}" title="${esc(this._t("saveToMasterTitle"))}">
           <ha-icon icon="mdi:playlist-plus"></ha-icon></button>`
       : "";
     return `<div class="item ${item.packed ? "done" : ""}" data-action="toggle-packed" data-uid="${esc(item.uid)}">
@@ -529,17 +760,17 @@ class PackingListCard extends HTMLElement {
     const f = this._form;
     const details = this._showExtraDetails
       ? `<div class="panel">
-          <input data-input="xCat" list="pl-categories" placeholder="Kategori, f.eks. Sport" value="${esc(f.xCat || "")}">
+          <input data-input="xCat" list="pl-categories" placeholder="${esc(this._t("categoryExample"))}" value="${esc(f.xCat || "")}">
           ${this._renderTagPicker("xTags", "add-extra")}
           <label class="check"><input type="checkbox" data-change="xToMaster" ${f.xToMaster !== false ? "checked" : ""}>
-            Gem også i master-listen</label>
+            ${esc(this._t("alsoSaveToMaster"))}</label>
         </div>`
       : "";
     return `<div class="row add">
-        <input data-input="extraItem" data-enter="add-extra" placeholder="Nyt punkt til denne liste" value="${esc(f.extraItem || "")}">
-        <button class="icon ${this._showExtraDetails ? "active" : ""}" data-action="toggle-extra-details" title="Kategori, tags og master">
+        <input data-input="extraItem" data-enter="add-extra" placeholder="${esc(this._t("newItem"))}" value="${esc(f.extraItem || "")}">
+        <button class="icon ${this._showExtraDetails ? "active" : ""}" data-action="toggle-extra-details" title="${esc(this._t("detailsTitle"))}">
           <ha-icon icon="mdi:tune-variant"></ha-icon></button>
-        <button data-action="add-extra">Tilføj</button>
+        <button data-action="add-extra">${esc(this._t("add"))}</button>
       </div>${details}`;
   }
 
@@ -549,48 +780,51 @@ class PackingListCard extends HTMLElement {
     const packed = list.items.filter((i) => i.packed);
     const shown = mode === "inline" ? list.items : list.items.filter((i) => !i.packed);
     let groups = this._group(shown)
-      .map(([cat, catItems]) => `<div class="cat">${esc(cat)}</div>` + catItems.map((i) => this._packRow(i)).join(""))
+      .map(
+        ([cat, catItems]) =>
+          `<div class="cat">${esc(this._categoryLabel(cat))}</div>` + catItems.map((i) => this._packRow(i)).join(""),
+      )
       .join("");
     if (mode === "bottom" && packed.length) {
       groups +=
-        `<div class="cat packed-head">Pakket (${packed.length})</div>` +
-        [...packed].sort(byName).map((i) => this._packRow(i)).join("");
+        `<div class="cat packed-head">${esc(this._t("packedHeading", { count: packed.length }))}</div>` +
+        [...packed].sort((a, b) => this._byName(a, b)).map((i) => this._packRow(i)).join("");
     }
-    const empty = list.items.length
-      ? "Alt er pakket 🎉"
-      : `Listen er tom – hent punkter under "Vælg fra master".`;
-    return `<datalist id="pl-categories">${this._categories().map((c) => `<option value="${esc(c)}"></option>`).join("")}</datalist>
+    const empty = this._t(list.items.length ? "allPacked" : "listEmpty");
+    return `${this._categoryDatalist()}
       ${this._deleteMode ? this._renderDeleteBar(list) : this._renderPackTools(list)}
-      ${groups || `<div class="empty">${empty}</div>`}
+      ${groups || `<div class="empty">${esc(empty)}</div>`}
       ${this._deleteMode ? "" : this._renderAddExtra()}`;
   }
 
-  // What "Hent igen" fetches, e.g. "#ski, #altid, Tøj" – empty if the list has no criteria.
+  // What "Fetch again" fetches, e.g. "#ski, #always, Clothes" – empty if the list has no criteria.
   _refreshCriteria(list) {
     return [
       ...(list.tags || []).map((t) => `#${t}`),
-      ...(list.include_always ? [`#${ALWAYS_TAG}`] : []),
+      ...(list.include_always ? [`#${this._alwaysTag}`] : []),
       ...(list.categories || []),
     ];
   }
 
   _renderPackTools(list) {
+    const labels = { inline: "packedInline", bottom: "packedBottom", hide: "packedHide" };
     const modes = PACKED_MODES.map(
-      ([value, label]) => `<option value="${value}" ${value === this._packedMode ? "selected" : ""}>${label}</option>`,
+      (value) =>
+        `<option value="${value}" ${value === this._packedMode ? "selected" : ""}>${esc(this._t(labels[value]))}</option>`,
     ).join("");
     const criteria = this._refreshCriteria(list);
     const refresh = criteria.length
-      ? `<button data-action="refresh-list" title="Henter nye master-punkter med ${esc(criteria.join(", "))}.">
-          <ha-icon icon="mdi:refresh"></ha-icon> Hent igen</button>`
+      ? `<button data-action="refresh-list" title="${esc(this._t("refreshTitle", { criteria: criteria.join(", ") }))}">
+          <ha-icon icon="mdi:refresh"></ha-icon> ${esc(this._t("refresh"))}</button>`
       : "";
     const packed = list.items.filter((i) => i.packed).length;
     return `<div class="row tools">
-        <select data-change="packedMode" title="Visning af pakkede punkter">${modes}</select>
+        <select data-change="packedMode" title="${esc(this._t("packedModeTitle"))}">${modes}</select>
         <div class="row">
           ${refresh}
-          ${list.items.length ? `<button data-action="delete-mode" title="Vælg punkter der skal slettes"><ha-icon icon="mdi:delete-outline"></ha-icon> Slet punkter</button>` : ""}
-          <button data-action="reset-list" ${packed ? "" : "disabled"} title="Fjern fluebenet fra alle pakkede punkter">
-            <ha-icon icon="mdi:checkbox-blank-off-outline"></ha-icon> Fjern flueben</button>
+          ${list.items.length ? `<button data-action="delete-mode" title="${esc(this._t("deleteItemsTitle"))}"><ha-icon icon="mdi:delete-outline"></ha-icon> ${esc(this._t("deleteItems"))}</button>` : ""}
+          <button data-action="reset-list" ${packed ? "" : "disabled"} title="${esc(this._t("uncheckTitle"))}">
+            <ha-icon icon="mdi:checkbox-blank-off-outline"></ha-icon> ${esc(this._t("uncheck"))}</button>
         </div>
       </div>
       ${this._renderDialog("pack-tools")}
@@ -601,11 +835,11 @@ class PackingListCard extends HTMLElement {
     const count = this._selected.size;
     const all = count === list.items.length;
     return `<div class="row tools deletebar">
-        <span class="small">Markér de punkter, der skal slettes</span>
+        <span class="small">${esc(this._t("deleteHint"))}</span>
         <div class="row">
-          <button data-action="select-all">${all ? "Fravælg alle" : "Vælg alle"}</button>
-          <button class="danger" data-action="delete-selected" ${count ? "" : "disabled"}>Slet${count ? ` (${count})` : ""}</button>
-          <button data-action="cancel-delete">Annuller</button>
+          <button data-action="select-all">${esc(this._t(all ? "deselectAll" : "selectAll"))}</button>
+          <button class="danger" data-action="delete-selected" ${count ? "" : "disabled"}>${esc(count ? this._t("deleteCount", { count }) : this._t("delete"))}</button>
+          <button data-action="cancel-delete">${esc(this._t("cancel"))}</button>
         </div>
       </div>`;
   }
@@ -629,12 +863,13 @@ class PackingListCard extends HTMLElement {
     const groups = this._group(this._data.master)
       .map(
         ([cat, catItems]) =>
-          `<div class="cat">${esc(cat)}<button class="link" data-action="pick-category" data-cat="${esc(cat)}">tilføj alle</button></div>` +
+          `<div class="cat">${esc(this._categoryLabel(cat))}<button class="link" data-action="pick-category" data-cat="${esc(cat)}">${esc(this._t("addAll"))}</button></div>` +
           this._renderDialog(`cat:${cat}`) +
           catItems
             .map((m) => {
               const onList = this._listItemFor(list, m);
-              const hint = !onList && excluded.has(m.uid) ? `<span class="excluded">slettet fra listen</span>` : "";
+              const hint =
+                !onList && excluded.has(m.uid) ? `<span class="excluded">${esc(this._t("deletedFromList"))}</span>` : "";
               return `<div class="item" data-action="pick-toggle" data-uid="${esc(m.uid)}">
                 ${this._checkbox(onList)}
                 <span class="name">${esc(m.summary)}</span>${hint}
@@ -644,10 +879,10 @@ class PackingListCard extends HTMLElement {
             .join(""),
       )
       .join("");
-    return `<div class="label">Tilføj alle punkter med tag:</div>
-      <div class="chips">${chips || `<span class="muted small">Ingen tags endnu.</span>`}</div>
+    return `<div class="label">${esc(this._t("addAllWithTag"))}</div>
+      <div class="chips">${chips || `<span class="muted small">${esc(this._t("noTags"))}</span>`}</div>
       ${this._renderDialog("pick-tags")}
-      ${groups || `<div class="empty">Master-listen er tom – tilføj punkter under "Master".</div>`}`;
+      ${groups || `<div class="empty">${esc(this._t("masterEmptyPick"))}</div>`}`;
   }
 
   // -------------------------------------------------------------- master tab
@@ -656,19 +891,19 @@ class PackingListCard extends HTMLElement {
     if (m.uid === this._editUid) {
       const f = this._form;
       return `<div class="item editing">
-          <input data-input="eName" data-enter="save-edit" ${this._focusEditName ? "data-autofocus" : ""} placeholder="Navn" value="${esc(f.eName)}">
-          <input data-input="eCat" data-enter="save-edit" list="pl-categories" placeholder="Kategori (tom = ingen)" value="${esc(f.eCat)}">
+          <input data-input="eName" data-enter="save-edit" ${this._focusEditName ? "data-autofocus" : ""} placeholder="${esc(this._t("name"))}" value="${esc(f.eName)}">
+          <input data-input="eCat" data-enter="save-edit" list="pl-categories" placeholder="${esc(this._t("categoryOptional"))}" value="${esc(f.eCat)}">
           ${this._renderTagPicker("eTags", "save-edit")}
-          <div class="row"><button class="primary" data-action="save-edit">Gem</button>
-            <button data-action="cancel-edit">Annuller</button></div>
+          <div class="row"><button class="primary" data-action="save-edit">${esc(this._t("save"))}</button>
+            <button data-action="cancel-edit">${esc(this._t("cancel"))}</button></div>
         </div>`;
     }
     return `<div class="item">
         <span class="name">${esc(m.summary)}${m.notes ? `<span class="notes">${esc(m.notes)}</span>` : ""}</span>
         <span class="tags">${m.tags.map((t) => `#${esc(t)}`).join(" ")}</span>
-        <button class="icon" data-action="edit-master" data-uid="${esc(m.uid)}" title="Ret kategori og tags">
+        <button class="icon" data-action="edit-master" data-uid="${esc(m.uid)}" title="${esc(this._t("editTitle"))}">
           <ha-icon icon="mdi:pencil-outline"></ha-icon></button>
-        <button class="icon" data-action="delete-master" data-uid="${esc(m.uid)}" title="Slet fra master">
+        <button class="icon" data-action="delete-master" data-uid="${esc(m.uid)}" title="${esc(this._t("deleteFromMaster"))}">
           <ha-icon icon="mdi:delete-outline"></ha-icon></button>
       </div>`;
   }
@@ -676,23 +911,26 @@ class PackingListCard extends HTMLElement {
   _renderMaster() {
     const f = this._form;
     const groups = this._group(this._data.master)
-      .map(([cat, catItems]) => `<div class="cat">${esc(cat)}</div>` + catItems.map((m) => this._renderMasterRow(m)).join(""))
+      .map(
+        ([cat, catItems]) =>
+          `<div class="cat">${esc(this._categoryLabel(cat))}</div>` + catItems.map((m) => this._renderMasterRow(m)).join(""),
+      )
       .join("");
-    return `<datalist id="pl-categories">${this._categories().map((c) => `<option value="${esc(c)}"></option>`).join("")}</datalist>
+    return `${this._categoryDatalist()}
       <div class="panel">
-        <div class="label">Tilføj et eller flere punkter – ét pr. linje. De får alle samme kategori og tags.</div>
+        <div class="label">${esc(this._t("masterAddHint"))}</div>
         <textarea data-input="mNames" data-enter="add-master" rows="4"
-          placeholder="Badetøj&#10;Badehåndklæde&#10;Klipklappere">${esc(f.mNames || "")}</textarea>
-        <input data-input="mCat" list="pl-categories" placeholder="Kategori, f.eks. Tøj" value="${esc(f.mCat || "")}">
+          placeholder="${esc(this._t("masterNamesExample")).replace(/\n/g, "&#10;")}">${esc(f.mNames || "")}</textarea>
+        <input data-input="mCat" list="pl-categories" placeholder="${esc(this._t("masterCategoryExample"))}" value="${esc(f.mCat || "")}">
         ${this._renderTagPicker("mTags", "add-master")}
-        <div class="muted small" style="padding:0">#${ALWAYS_TAG} = kommer med på alle nye lister</div>
-        <div class="row"><button class="primary" data-action="add-master">Tilføj til master</button>
+        <div class="muted small" style="padding:0">${esc(this._t("alwaysHint", { tag: this._alwaysTag }))}</div>
+        <div class="row"><button class="primary" data-action="add-master">${esc(this._t("addToMaster"))}</button>
           ${this._notice ? `<span class="notice">${esc(this._notice)}</span>` : ""}</div>
         ${this._renderDialog("add-master")}
       </div>
-      ${groups || `<div class="empty">Master-listen er tom.</div>`}
+      ${groups || `<div class="empty">${esc(this._t("masterEmpty"))}</div>`}
       <div class="row add"><button data-action="reset-master">
-        <ha-icon icon="mdi:restore"></ha-icon> Nulstil til standard master-liste</button></div>
+        <ha-icon icon="mdi:restore"></ha-icon> ${esc(this._t("resetMaster"))}</button></div>
       ${this._renderDialog("reset-master")}`;
   }
 
@@ -747,11 +985,11 @@ class PackingListCard extends HTMLElement {
       for (const name of names) {
         const existing = this._data.master.find((m) => sameText(m.summary, name));
         if (existing && !sameText(existing.category, category)) {
-          const from = existing.category ? `kategorien "${existing.category}"` : "ingen kategori";
+          const from = existing.category ? this._t("inCategory", { category: existing.category }) : this._t("noCategory");
           const answer = await this._ask(
             "add-master",
-            `"${existing.summary}" findes allerede i ${from}.\nSkal den flyttes til "${category}"?`,
-            { yes: `Flyt til ${category}`, no: "Behold kategori" },
+            this._t("moveQuestion", { name: existing.summary, from, category }),
+            { yes: this._t("moveYes", { category }), no: this._t("moveNo") },
           );
           if (this._tab !== "master") return; // user left the tab: drop the whole add
           if (answer) move.push(existing.summary);
@@ -763,12 +1001,12 @@ class PackingListCard extends HTMLElement {
     if (category) data.category = category;
     const res = await this._callWithResponse("add_master_items", data);
     const parts = [
-      res.added && `${res.added} tilføjet`,
-      res.moved && `${res.moved} flyttet`,
-      res.tagged && `${res.tagged} fik nye tags`,
-      res.skipped && `${res.skipped} fandtes allerede`,
+      res.added && this._t("nAdded", { count: res.added }),
+      res.moved && this._t("nMoved", { count: res.moved }),
+      res.tagged && this._t("nTagged", { count: res.tagged }),
+      res.skipped && this._t("nSkipped", { count: res.skipped }),
     ].filter(Boolean);
-    this._notice = parts.join(", ") || "Intet ændret";
+    this._notice = parts.join(", ") || this._t("nothingChanged");
     // Keep category and tags so the next batch can reuse them.
     this._form = { ...f, mNames: "", mTags: data.tags, mTagsDraft: "" };
     this._render();
@@ -788,6 +1026,9 @@ class PackingListCard extends HTMLElement {
           if (this._dialog) this._closeDialog(-1); // last button = cancel
           this._exitDeleteMode();
           this._render();
+          break;
+        case "dialog-choice":
+          this._closeDialog(Number(el.dataset.index));
           break;
         case "toggle-new":
           this._showNew = !this._showNew;
@@ -815,13 +1056,13 @@ class PackingListCard extends HTMLElement {
           await this._fetch();
           break;
         }
-        case "dialog-choice":
-          this._closeDialog(Number(el.dataset.index));
-          break;
         case "delete-list":
           if (
             !list ||
-            !(await this._ask("header", `Slet pakkelisten "${list.name}"?`, { yes: "Slet listen", danger: true }))
+            !(await this._ask("header", this._t("deleteListQuestion", { name: list.name }), {
+              yes: this._t("deleteList"),
+              danger: true,
+            }))
           )
             return;
           await this._call("packing_list", "delete_list", { entity_id: list.entity_id });
@@ -843,12 +1084,10 @@ class PackingListCard extends HTMLElement {
         case "reset-list": {
           const packed = list.items.filter((i) => i.packed).length;
           if (!packed) return;
-          const ok = await this._ask(
-            "pack-tools",
-            `Fjern fluebenet fra ${packed === 1 ? "det pakkede punkt" : `alle ${packed} pakkede punkter`} på "${list.name}"?\n` +
-              "Punkterne bliver på listen, men står som ikke pakket.",
-            { yes: "Fjern flueben", no: "Annuller" },
-          );
+          const question = this._t(packed === 1 ? "uncheckOne" : "uncheckMany", { count: packed, name: list.name });
+          const ok = await this._ask("pack-tools", `${question}\n${this._t("uncheckNote")}`, {
+            yes: this._t("uncheck"),
+          });
           if (ok) await this._call("packing_list", "reset_list", { entity_id: list.entity_id });
           break;
         }
@@ -915,9 +1154,9 @@ class PackingListCard extends HTMLElement {
             entity_id: list.entity_id,
             include_excluded: include,
           });
-          this._packNotice = res.added
-            ? `${res.added} ${res.added === 1 ? "punkt" : "punkter"} hentet`
-            : "Ingen nye punkter at hente";
+          this._packNotice = !res.added
+            ? this._t("nothingFetched")
+            : this._t(res.added === 1 ? "fetchedOne" : "fetchedMany", { count: res.added });
           this._render();
           break;
         }
@@ -976,10 +1215,11 @@ class PackingListCard extends HTMLElement {
           const cat = el.dataset.cat;
           const uncategorized = cat === UNCATEGORIZED;
           const criteria = uncategorized ? { uids: this._categoryUids(UNCATEGORIZED) } : { categories: [cat] };
-          const include = await this._askIncludeDeleted(`cat:${cat}`, list, criteria, `kategorien "${cat}"`);
+          const label = this._t("inCategory", { category: this._categoryLabel(cat) });
+          const include = await this._askIncludeDeleted(`cat:${cat}`, list, criteria, label);
           if (include === null) return;
           if (uncategorized) {
-            // "Andet" has no category to remember, so its items are added one by one.
+            // Uncategorized items have no category to remember, so they are added one by one.
             const { fresh, deleted } = this._matching(list, criteria);
             const items = [...fresh, ...(include ? deleted : [])].map((m) => m.uid);
             if (items.length) await this._call("packing_list", "add_from_master", { entity_id: list.entity_id, items });
@@ -1045,14 +1285,11 @@ class PackingListCard extends HTMLElement {
         }
         case "reset-master":
           if (
-            !(await this._ask(
-              "reset-master",
-              "Er du sikker på, at du vil nulstille master-listen?\n\n" +
-                `Alle ${this._data.master.length} punkter i masteren – med dine egne kategorier og tags – ` +
-                "bliver erstattet af standardlisten. Det kan ikke fortrydes.\n" +
-                "Dine pakkelister berøres ikke.",
-              { yes: "Ja, nulstil master-listen", no: "Nej, behold min liste", danger: true },
-            ))
+            !(await this._ask("reset-master", this._t("resetQuestion", { count: this._data.master.length }), {
+              yes: this._t("resetYes"),
+              no: this._t("resetNo"),
+              danger: true,
+            }))
           )
             return;
           this._editUid = null;
@@ -1075,8 +1312,8 @@ if (!customElements.get("packing-list-card")) {
   window.customCards = window.customCards || [];
   window.customCards.push({
     type: "packing-list-card",
-    name: "Pakkeliste",
-    description: "Pakkelister bygget fra en master-liste (packing_list-integrationen).",
+    name: "Packing list",
+    description: "Packing lists built from a master list (packing_list integration).",
   });
 }
 

@@ -16,7 +16,8 @@ def auto_enable_custom_integrations(enable_custom_integrations):
 
 @pytest.fixture
 async def setup_entry(hass: HomeAssistant) -> MockConfigEntry:
-    """Set up the integration with the seeded master list."""
+    """Set up the integration in Danish with the seeded master list."""
+    hass.config.language = "da"
     entry = MockConfigEntry(domain=DOMAIN, data={CONF_SEED_MASTER: True}, title="Pakkelister")
     entry.add_to_hass(hass)
     assert await hass.config_entries.async_setup(entry.entry_id)

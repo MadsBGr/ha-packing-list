@@ -5,7 +5,7 @@
         "title": "Packing lists",
         "description": "Creates a master packing list and lets you build a packing list for each trip from it.",
         "data": {
-          "seed_master": "Start with a suggested master list (Danish)"
+          "seed_master": "Start with a suggested master list"
         }
       }
     },
@@ -203,6 +203,23 @@
           "description": "Tags in the master (omitted = the item's own)."
         }
       }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Packing lists is not set up."
+    },
+    "not_a_list": {
+      "message": "{entity_id} is not a packing list."
+    },
+    "list_gone": {
+      "message": "{entity_id} no longer exists."
+    },
+    "master_item_not_found": {
+      "message": "{item} is not on the master list."
+    },
+    "list_item_not_found": {
+      "message": "{item} is not on the packing list."
     }
   }
 }

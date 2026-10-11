@@ -17,6 +17,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from . import PackingListConfigEntry
 from .const import (
     MASTER_KEY,
+    NAMES,
     SIGNAL_LIST_ADDED,
     UNIQUE_ID_LIST_PREFIX,
     UNIQUE_ID_MASTER,
@@ -130,11 +131,12 @@ class MasterTodoEntity(_PackingTodoEntity):
     """
 
     _attr_icon = "mdi:format-list-checks"
-    _attr_name = "Pakkeliste master"
     _attr_unique_id = UNIQUE_ID_MASTER
 
     def __init__(self, manager: PackingListManager) -> None:
         super().__init__(manager, MASTER_KEY)
+        # The name follows the HA language; an existing entity id is kept by the registry.
+        self._attr_name = NAMES[manager.language]["master"]
 
 
 class TripTodoEntity(_PackingTodoEntity):

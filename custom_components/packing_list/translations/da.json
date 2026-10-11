@@ -204,5 +204,22 @@
         }
       }
     }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "Pakkelister er ikke sat op."
+    },
+    "not_a_list": {
+      "message": "{entity_id} er ikke en pakkeliste."
+    },
+    "list_gone": {
+      "message": "{entity_id} findes ikke længere."
+    },
+    "master_item_not_found": {
+      "message": "{item} findes ikke på master-listen."
+    },
+    "list_item_not_found": {
+      "message": "{item} findes ikke på pakkelisten."
+    }
   }
 }

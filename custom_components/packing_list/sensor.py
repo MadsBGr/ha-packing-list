@@ -11,7 +11,7 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PackingListConfigEntry
-from .const import SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX
+from .const import NAMES, SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX
 from .manager import PackingListManager
 
 
@@ -43,7 +43,7 @@ class PackingProgressSensor(SensorEntity):
         self._manager = manager
         self._list_id = list_id
         self._attr_unique_id = f"{UNIQUE_ID_LIST_PREFIX}{list_id}_progress"
-        self._attr_name = f"{manager.lists[list_id].name} pakket"
+        self._attr_name = NAMES[manager.language]["progress"].format(name=manager.lists[list_id].name)
 
     async def async_added_to_hass(self) -> None:
         """Follow changes of the trip list."""

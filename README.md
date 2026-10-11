@@ -10,7 +10,8 @@ medfølgende kort, i den indbyggede to-do-visning, i appen og via Assist.
 
 *English summary: A master packing list plus per-trip packing lists built from it by tag, category or
 hand-picked items. Every list is a native `todo` entity, and a bundled Lovelace card handles picking
-and packing.*
+and packing. The card, entity names and errors follow your Home Assistant language (Danish or English,
+English otherwise); a suggested master list in that language is created on first install only.*
 
 ## Funktioner
 
@@ -31,7 +32,22 @@ and packing.*
 - **Medfølgende Lovelace-kort** med tre faner: *Pak*, *Vælg fra master* og *Master*.
   Alt er sorteret alfabetisk inden for hver kategori. Integrationen
   opretter selv kortets ressource under Dashboards → Ressourcer.
+- **Sprog:** Kortet, navnene og fejlbeskederne følger sproget i Home Assistant. Dansk og engelsk er
+  understøttet, og alle andre sprog bliver engelsk.
 - Alt gemmes lokalt i `.storage`. Der er ingen cloud og ingen eksterne afhængigheder.
+
+## Sprog og standardlisten
+
+- Kortet bruger det sprog, der er valgt i din HA-profil. Er sproget hverken dansk eller engelsk,
+  bruges engelsk.
+- Den foreslåede master-liste findes på dansk og engelsk. Den oprettes **kun ved første installation**,
+  på det sprog HA har på det tidspunkt, eller når du selv trykker **Nulstil til standard master-liste**.
+  Opdateringer via HACS og genstarter ændrer aldrig din eksisterende master-liste og tilføjer ikke
+  nye punkter.
+- `#altid` og `#always` betyder det samme: punktet kommer med på alle nye lister. Begge virker,
+  uanset sprog.
+- Skifter du sprog i HA, skifter master-entitetens viste navn ("Pakkeliste master" / "Packing list master"),
+  men dens entity id ændrer sig ikke.
 
 ## Installation
 

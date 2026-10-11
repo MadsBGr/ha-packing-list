@@ -11,7 +11,15 @@ import uuid
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 
-from .const import ALWAYS_TAG, MASTER_KEY, SEED_ITEMS, STORAGE_KEY, STORAGE_VERSION
+from .const import (
+    ALWAYS_TAGS,
+    MASTER_KEY,
+    SEED_ITEMS_DA,
+    SEED_ITEMS_EN,
+    STORAGE_KEY,
+    STORAGE_VERSION,
+    language,
+)
 
 _TAG_RE = re.compile(r"(?<!\S)#([^\s#@]+)")
 _CATEGORY_RE = re.compile(r"(?<!\S)@([^\s#@]+)")
@@ -56,10 +64,11 @@ def _new_uid() -> str:
     return uuid.uuid4().hex
 
 
-def _seed_items() -> list[PackingItem]:
+def _seed_items(lang: str) -> list[PackingItem]:
+    """The default master list in the given language (Danish or English)."""
     return [
         PackingItem(uid=_new_uid(), summary=summary, description=desc)
-        for summary, desc in SEED_ITEMS
+        for summary, desc in (SEED_ITEMS_DA if lang == "da" else SEED_ITEMS_EN)
     ]
 
 
@@ -122,12 +131,21 @@ class PackingListManager:
         self.revision = 0
         self._listeners: dict[str, list[Callable[[], None]]] = {}
 
+    @property
+    def language(self) -> str:
+        """Current Home Assistant language, as "da" or "en"."""
+        return language(getattr(getattr(self.hass, "config", None), "language", None))
+
     async def async_load(self) -> None:
-        """Load data from storage, seeding the master list on first run."""
+        """Load data from storage.
+
+        The default master list is only created when nothing is stored yet,
+        i.e. on the very first installation. Updates never touch stored data.
+        """
         data = await self.store.async_load()
         if data is None:
             if self._seed_master:
-                self.master = _seed_items()
+                self.master = _seed_items(self.language)
             self._schedule_save()
             return
         self.master = [PackingItem(**item) for item in data.get("master", [])]
@@ -316,7 +334,7 @@ class PackingListManager:
         name, so items that also exist in the default list stay connected.
         """
         old_names = {item.uid: item.summary.casefold() for item in self.master}
-        self.master = _seed_items()
+        self.master = _seed_items(self.language)
         by_name = {item.summary.casefold(): item.uid for item in self.master}
         for plist in self.lists.values():
             for list_item in plist.items:
@@ -419,7 +437,7 @@ class PackingListManager:
         plist.categories = list(dict.fromkeys([*plist.categories, *sorted(wanted_categories)]))
         plist.include_always = plist.include_always or include_always
         if include_always:
-            wanted_tags.add(ALWAYS_TAG)
+            wanted_tags.update(ALWAYS_TAGS)
         wanted_categories = {cat.casefold() for cat in wanted_categories}
 
         have_master = {item.master_uid for item in plist.items if item.master_uid}
