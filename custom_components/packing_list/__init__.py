@@ -2,17 +2,14 @@
 
 from __future__ import annotations
 
-from pathlib import Path
-
-from homeassistant.components.frontend import add_extra_js_url
-from homeassistant.components.http import StaticPathConfig
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import Platform
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
-from .const import CARD_URL, CONF_SEED_MASTER, DOMAIN, VERSION
+from .const import CONF_SEED_MASTER, DOMAIN
+from .card import async_setup_frontend
 from .manager import PackingListManager
 from .services import async_register_services
 from .websocket import async_register_websocket
@@ -28,12 +25,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     """Register services, websocket API and the bundled Lovelace card."""
     async_register_services(hass)
     async_register_websocket(hass)
-
-    card_path = Path(__file__).parent / "frontend" / "packing-list-card.js"
-    await hass.http.async_register_static_paths(
-        [StaticPathConfig(CARD_URL, str(card_path), cache_headers=False)]
-    )
-    add_extra_js_url(hass, f"{CARD_URL}?v={VERSION}")
+    await async_setup_frontend(hass)
     return True
 
 

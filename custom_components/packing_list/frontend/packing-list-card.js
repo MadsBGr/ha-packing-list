@@ -1,6 +1,6 @@
 /*
  * Packing list card for the packing_list integration.
- * Served by the integration and loaded automatically – no resource setup needed.
+ * Served by the integration and registered automatically as a dashboard resource.
  *
  *   type: custom:packing-list-card
  *   title: Pakkeliste        # optional
@@ -8,7 +8,7 @@
  *   default_tab: pack        # optional: pack | pick | master
  */
 
-const CARD_VERSION = "0.1.0";
+const CARD_VERSION = "0.1.1";
 const UNCATEGORIZED = "Andet";
 const ALWAYS_TAG = "altid";
 

@@ -21,8 +21,8 @@ and packing.*
   kommer automatisk med. Dubletter springes over.
 - **Ekstra punkter** kan tilføjes til en enkelt tur uden at røre masteren.
 - **Nulstil** sætter en liste til "ikke pakket", så den kan genbruges til hjemrejsen.
-- **Medfølgende Lovelace-kort** med tre faner: *Pak*, *Vælg fra master* og *Master*. Kortet indlæses
-  automatisk, så du ikke skal sætte en ressource op.
+- **Medfølgende Lovelace-kort** med tre faner: *Pak*, *Vælg fra master* og *Master*. Integrationen
+  opretter selv kortets ressource under Dashboards → Ressourcer.
 - Alt gemmes lokalt i `.storage`. Der er ingen cloud og ingen eksterne afhængigheder.
 
 ## Installation
@@ -40,6 +40,13 @@ and packing.*
 Kopiér `custom_components/packing_list` til `config/custom_components/` og genstart.
 
 ## Kortet
+
+Integrationen tilføjer automatisk `/packing_list/packing-list-card.js` som ressource (JavaScript-modul)
+og opdaterer versionsnummeret ved hver opdatering. Genindlæs browseren (Ctrl+Shift+R) efter installation
+eller opdatering.
+
+> Bruger du dashboards i **YAML-tilstand**, kan integrationen ikke ændre ressourcerne. Så skal du selv
+> tilføje `/packing_list/packing-list-card.js` med `type: module` under `lovelace: resources:`.
 
 ```yaml
 type: custom:packing-list-card
