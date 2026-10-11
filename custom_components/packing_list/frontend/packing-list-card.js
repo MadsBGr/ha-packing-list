@@ -382,19 +382,21 @@ class PackingListCard extends HTMLElement {
     if (!deleted.length) return false;
     const names = deleted.map((m) => m.summary).sort((a, b) => a.localeCompare(b, "da"));
     const shown = names.slice(0, 5).join(", ") + (names.length > 5 ? ` og ${names.length - 5} flere` : "");
+    const one = deleted.length === 1;
+    const them = one ? "den" : "dem";
     const message = fresh.length
-      ? `${deleted.length} af punkterne med ${label} har du tidligere slettet fra listen: ${shown}.\n` +
-        `Vil du også hente dem igen?`
-      : `Der er ingen nye punkter med ${label}, men ${deleted.length} som du tidligere har slettet fra listen: ${shown}.\n` +
-        `Vil du hente dem igen?`;
+      ? `${one ? "Et" : deleted.length} af punkterne med ${label} har du tidligere slettet fra listen: ${shown}.\n` +
+        `Vil du også hente ${them} igen?`
+      : `Der er ingen nye punkter med ${label}, men ${one ? "et" : deleted.length}, som du tidligere har slettet fra listen: ${shown}.\n` +
+        `Vil du hente ${them} igen?`;
     const buttons = fresh.length
       ? [
-          { label: "Hent også de slettede", value: true, style: "primary" },
+          { label: one ? "Hent også den slettede" : "Hent også de slettede", value: true, style: "primary" },
           { label: `Kun nye punkter (${fresh.length})`, value: false },
           { label: "Annuller", value: null },
         ]
       : [
-          { label: "Hent dem igen", value: true, style: "primary" },
+          { label: `Hent ${them} igen`, value: true, style: "primary" },
           { label: "Annuller", value: null },
         ];
     return this._choose(anchor, message, buttons);
