@@ -50,5 +50,9 @@ def ws_get_data(
                 }
                 for plist in manager.lists.values()
             ],
+            "templates": [
+                {"template_id": t.template_id, "name": t.name, "items": t.items}
+                for t in sorted(manager.templates.values(), key=lambda t: t.name.casefold())
+            ],
         },
     )

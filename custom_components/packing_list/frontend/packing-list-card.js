@@ -5,11 +5,11 @@
  *   type: custom:packing-list-card
  *   title: Pakkeliste        # optional
  *   entity: todo.skiferie    # optional: list selected by default
- *   default_tab: pack        # optional: pack | pick | master
+ *   default_tab: pack        # optional: pack | pick | templates | master
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.3.0";
+const CARD_VERSION = "0.4.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const UNCATEGORIZED = "Andet";
 const ALWAYS_TAG = "altid";
@@ -19,6 +19,8 @@ const PACKED_MODES = [
   ["hide", "Skjul pakkede"],
 ];
 const PACKED_MODE_KEY = "packing-list-card.packed-mode";
+
+const byName = (a, b) => a.summary.localeCompare(b.summary, "da");
 
 const loadPackedMode = () => {
   try {
@@ -59,7 +61,7 @@ const STYLE = `
   .bar { flex: 1; height: 8px; border-radius: 4px; background: var(--divider-color); overflow: hidden; }
   .bar > div { height: 100%; background: var(--success-color, var(--primary-color)); transition: width .3s; }
   .tabs { display: flex; margin: 12px 0 8px; border-bottom: 1px solid var(--divider-color); }
-  .tabs button { border: none; border-radius: 0; flex: 1; border-bottom: 2px solid transparent; color: var(--secondary-text-color); }
+  .tabs button { border: none; border-radius: 0; flex: 1; padding: 8px 4px; border-bottom: 2px solid transparent; color: var(--secondary-text-color); }
   .tabs button.on { color: var(--primary-color); border-bottom-color: var(--primary-color); }
   .panel { display: flex; flex-direction: column; gap: 8px; padding: 12px; margin: 12px 0; border-radius: 8px; background: var(--secondary-background-color); }
   .cat { display: flex; justify-content: space-between; align-items: center; margin: 14px 0 4px; font-weight: 500; font-size: .85em; text-transform: uppercase; letter-spacing: .05em; color: var(--secondary-text-color); }
@@ -209,9 +211,14 @@ class PackingListCard extends HTMLElement {
       if (!groups.has(cat)) groups.set(cat, []);
       groups.get(cat).push(item);
     }
+    for (const catItems of groups.values()) catItems.sort(byName);
     return [...groups.entries()].sort(([a], [b]) =>
       a === UNCATEGORIZED ? 1 : b === UNCATEGORIZED ? -1 : a.localeCompare(b, "da"),
     );
+  }
+
+  get _templates() {
+    return this._data?.templates || [];
   }
 
   _checkbox(on) {
@@ -276,9 +283,18 @@ class PackingListCard extends HTMLElement {
           `<button class="chip ${selected.has(t) ? "on" : ""}" data-action="toggle-new-tag" data-tag="${esc(t)}">#${esc(t)}</button>`,
       )
       .join("");
+    const selectedTemplates = new Set(f.newTemplates || []);
+    const templateChips = this._templates
+      .map(
+        (t) =>
+          `<button class="chip ${selectedTemplates.has(t.template_id) ? "on" : ""}" data-action="toggle-new-template-chip" data-id="${esc(t.template_id)}">${esc(t.name)}</button>`,
+      )
+      .join("");
     return `<div class="panel">
       <input data-input="newName" data-enter="create-list" placeholder="Navn, f.eks. Skiferie 2027" value="${esc(f.newName || "")}">
       <input type="date" data-input="newDate" value="${esc(f.newDate || "")}">
+      <div class="label">Tag udgangspunkt i skabeloner:</div>
+      <div class="chips">${templateChips || `<span class="muted small">Ingen skabeloner endnu – opret dem under "Skabeloner".</span>`}</div>
       <div class="label">Hent punkter med tags:</div>
       <div class="chips">${chips || `<span class="muted small">Master-listen har ingen tags endnu.</span>`}</div>
       <label class="check"><input type="checkbox" data-change="newAlways" ${f.newAlways !== false ? "checked" : ""}>
@@ -292,6 +308,7 @@ class PackingListCard extends HTMLElement {
     const tabs = [
       ["pack", "Pak"],
       ["pick", "Vælg fra master"],
+      ["templates", "Skabeloner"],
       ["master", "Master"],
     ];
     return `<div class="tabs">${tabs
@@ -301,6 +318,7 @@ class PackingListCard extends HTMLElement {
 
   _renderTab() {
     if (this._tab === "master") return this._renderMaster();
+    if (this._tab === "templates") return this._renderTemplates();
     const list = this._list;
     if (!list) return `<div class="empty">Opret en pakkeliste med "+ Ny liste".</div>`;
     return this._tab === "pick" ? this._renderPick(list) : this._renderPack(list);
@@ -321,7 +339,7 @@ class PackingListCard extends HTMLElement {
       .map(([cat, catItems]) => `<div class="cat">${esc(cat)}</div>` + catItems.map((i) => this._packRow(i)).join(""))
       .join("");
     if (mode === "bottom" && packed.length) {
-      const sorted = [...packed].sort((a, b) => a.summary.localeCompare(b.summary, "da"));
+      const sorted = [...packed].sort(byName);
       groups += `<div class="cat packed-head">Pakket (${packed.length})</div>` + sorted.map((i) => this._packRow(i)).join("");
     }
     const empty = list.items.length
@@ -341,35 +359,88 @@ class PackingListCard extends HTMLElement {
       </div>`;
   }
 
-  _renderPick(list) {
-    const byMaster = new Map();
-    const bySummary = new Map();
-    for (const item of list.items) {
-      if (item.master_uid) byMaster.set(item.master_uid, item);
-      bySummary.set(item.summary.toLowerCase(), item);
-    }
+  // The list item that corresponds to a master item (by master uid, else by name).
+  _listItemFor(list, master) {
+    const name = master.summary.toLowerCase();
+    return (
+      list.items.find((i) => i.master_uid === master.uid) ||
+      list.items.find((i) => i.summary.toLowerCase() === name) ||
+      null
+    );
+  }
+
+  // Master items with checkboxes; used to fill a packing list (prefix "pick") or a template ("tpl").
+  _renderMasterPicker(isOn, prefix) {
     const chips = this._allTags()
-      .map((t) => `<button class="chip" data-action="add-tag" data-tag="${esc(t)}">+ #${esc(t)}</button>`)
+      .map((t) => `<button class="chip" data-action="${prefix}-tag" data-tag="${esc(t)}">+ #${esc(t)}</button>`)
       .join("");
     const groups = this._group(this._data.master)
       .map(
         ([cat, catItems]) =>
-          `<div class="cat">${esc(cat)}<button class="link" data-action="add-category" data-cat="${esc(cat)}">tilføj alle</button></div>` +
+          `<div class="cat">${esc(cat)}<button class="link" data-action="${prefix}-category" data-cat="${esc(cat)}">tilføj alle</button></div>` +
           catItems
-            .map((m) => {
-              const onList = byMaster.get(m.uid) || bySummary.get(m.summary.toLowerCase());
-              return `<div class="item" data-action="toggle-pick" data-uid="${esc(m.uid)}" data-list-uid="${onList ? esc(onList.uid) : ""}">
-                ${this._checkbox(onList)}
+            .map(
+              (m) => `<div class="item" data-action="${prefix}-toggle" data-uid="${esc(m.uid)}">
+                ${this._checkbox(isOn(m))}
                 <span class="name">${esc(m.summary)}</span>
                 <span class="tags">${m.tags.map((t) => `#${esc(t)}`).join(" ")}</span>
-              </div>`;
-            })
+              </div>`,
+            )
             .join(""),
       )
       .join("");
     return `<div class="label">Tilføj alle punkter med tag:</div>
       <div class="chips">${chips || `<span class="muted small">Ingen tags endnu.</span>`}</div>
       ${groups || `<div class="empty">Master-listen er tom – tilføj punkter under "Master".</div>`}`;
+  }
+
+  _renderPick(list) {
+    const templateChips = this._templates
+      .map((t) => `<button class="chip" data-action="pick-template" data-id="${esc(t.template_id)}">+ ${esc(t.name)}</button>`)
+      .join("");
+    const templates = templateChips
+      ? `<div class="label">Hent skabelon:</div><div class="chips">${templateChips}</div>`
+      : "";
+    return templates + this._renderMasterPicker((m) => this._listItemFor(list, m), "pick");
+  }
+
+  _renderTemplates() {
+    const f = this._form;
+    const templates = this._templates;
+    if (!templates.some((t) => t.template_id === this._templateId)) {
+      this._templateId = templates[0]?.template_id ?? null;
+    }
+    const template = templates.find((t) => t.template_id === this._templateId);
+    const select = templates.length
+      ? `<select data-change="select-template">${templates
+          .map(
+            (t) =>
+              `<option value="${esc(t.template_id)}" ${t === template ? "selected" : ""}>${esc(t.name)} (${t.items.length})</option>`,
+          )
+          .join("")}</select>`
+      : `<span class="muted" style="flex:1">Ingen skabeloner endnu</span>`;
+    const header = `<div class="row header">${select}
+        <button data-action="toggle-new-template" class="${this._showNewTemplate ? "active" : ""}">+ Ny skabelon</button>
+        ${
+          template
+            ? `<button class="icon" data-action="rename-template" title="Omdøb skabelon"><ha-icon icon="mdi:pencil-outline"></ha-icon></button>
+               <button class="icon" data-action="delete-template" title="Slet skabelon"><ha-icon icon="mdi:delete-outline"></ha-icon></button>`
+            : ""
+        }
+      </div>`;
+    const form =
+      this._showNewTemplate || !template
+        ? `<div class="panel">
+            <input data-input="tplName" data-enter="create-template" placeholder="Navn, f.eks. Vandretur, Sommerhus, Bilferie" value="${esc(f.tplName || "")}">
+            <div class="row"><button class="primary" data-action="create-template">Opret skabelon</button></div>
+          </div>`
+        : "";
+    if (!template) {
+      return `${header}${form}<div class="muted small">En skabelon er et udvalg af master-punkter, du kan tage
+        udgangspunkt i, når du opretter en ny pakkeliste – f.eks. "Vandretur" eller "Sommerhus".</div>`;
+    }
+    const inTemplate = new Set(template.items);
+    return header + form + this._renderMasterPicker((m) => inTemplate.has(m.uid), "tpl");
   }
 
   _renderMaster() {
@@ -413,6 +484,9 @@ class PackingListCard extends HTMLElement {
     if (key === "select-list") {
       this._listId = ev.target.value;
       this._render();
+    } else if (key === "select-template") {
+      this._templateId = ev.target.value;
+      this._render();
     } else if (key === "packedMode") {
       this._packedMode = ev.target.value;
       try {
@@ -424,6 +498,10 @@ class PackingListCard extends HTMLElement {
     } else if (key === "newAlways") {
       this._form.newAlways = ev.target.checked;
     }
+  }
+
+  _categoryUids(category) {
+    return this._data.master.filter((m) => (m.category || UNCATEGORIZED) === category).map((m) => m.uid);
   }
 
   _call(domain, service, data, target) {
@@ -456,7 +534,12 @@ class PackingListCard extends HTMLElement {
         case "create-list": {
           const name = (f.newName || "").trim();
           if (!name) return;
-          const data = { name, tags: f.newTags || [], include_always: f.newAlways !== false };
+          const data = {
+            name,
+            tags: f.newTags || [],
+            templates: f.newTemplates || [],
+            include_always: f.newAlways !== false,
+          };
           if (f.newDate) data.trip_date = f.newDate;
           const result = await this._hass.callWS({
             type: "call_service",
@@ -498,23 +581,86 @@ class PackingListCard extends HTMLElement {
           await this._call("todo", "add_item", { item: summary }, { entity_id: list.entity_id });
           break;
         }
-        case "toggle-pick":
-          if (el.dataset.listUid) {
-            await this._call("todo", "remove_item", { item: el.dataset.listUid }, { entity_id: list.entity_id });
+        case "toggle-new-template-chip": {
+          const ids = new Set(f.newTemplates || []);
+          const id = el.dataset.id;
+          if (ids.has(id)) ids.delete(id);
+          else ids.add(id);
+          f.newTemplates = [...ids];
+          this._render();
+          break;
+        }
+        case "pick-toggle": {
+          const master = this._data.master.find((m) => m.uid === el.dataset.uid);
+          const onList = master && this._listItemFor(list, master);
+          if (onList) {
+            await this._call("todo", "remove_item", { item: onList.uid }, { entity_id: list.entity_id });
           } else {
             await this._call("packing_list", "add_from_master", { entity_id: list.entity_id, items: [el.dataset.uid] });
           }
           break;
-        case "add-tag":
+        }
+        case "pick-tag":
           await this._call("packing_list", "add_from_master", { entity_id: list.entity_id, tags: [el.dataset.tag] });
           break;
-        case "add-category": {
-          const items = this._data.master
-            .filter((m) => (m.category || UNCATEGORIZED) === el.dataset.cat)
-            .map((m) => m.uid);
-          await this._call("packing_list", "add_from_master", { entity_id: list.entity_id, items });
+        case "pick-category":
+          await this._call("packing_list", "add_from_master", {
+            entity_id: list.entity_id,
+            items: this._categoryUids(el.dataset.cat),
+          });
+          break;
+        case "pick-template":
+          await this._call("packing_list", "add_from_master", { entity_id: list.entity_id, templates: [el.dataset.id] });
+          break;
+        case "toggle-new-template":
+          this._showNewTemplate = !this._showNewTemplate;
+          this._render();
+          break;
+        case "create-template": {
+          const name = (f.tplName || "").trim();
+          if (!name) return;
+          const result = await this._hass.callWS({
+            type: "call_service",
+            domain: "packing_list",
+            service: "create_template",
+            service_data: { name },
+            return_response: true,
+          });
+          this._templateId = result?.response?.template_id ?? this._templateId;
+          f.tplName = "";
+          this._showNewTemplate = false;
+          await this._fetch();
           break;
         }
+        case "rename-template": {
+          const template = this._templates.find((t) => t.template_id === this._templateId);
+          const name = template && prompt("Nyt navn til skabelonen", template.name);
+          if (!name || !name.trim() || name.trim() === template.name) return;
+          await this._call("packing_list", "update_template", { template: template.template_id, name: name.trim() });
+          break;
+        }
+        case "delete-template": {
+          const template = this._templates.find((t) => t.template_id === this._templateId);
+          if (!template || !confirm(`Slet skabelonen "${template.name}"?`)) return;
+          await this._call("packing_list", "delete_template", { template: template.template_id });
+          this._templateId = null;
+          break;
+        }
+        case "tpl-toggle": {
+          const template = this._templates.find((t) => t.template_id === this._templateId);
+          const field = template.items.includes(el.dataset.uid) ? "remove_items" : "items";
+          await this._call("packing_list", "update_template", { template: template.template_id, [field]: [el.dataset.uid] });
+          break;
+        }
+        case "tpl-tag":
+          await this._call("packing_list", "update_template", { template: this._templateId, tags: [el.dataset.tag] });
+          break;
+        case "tpl-category":
+          await this._call("packing_list", "update_template", {
+            template: this._templateId,
+            items: this._categoryUids(el.dataset.cat),
+          });
+          break;
         case "add-master": {
           const items = (f.mNames || "").split("\n").map((s) => s.trim()).filter(Boolean);
           if (!items.length) return;

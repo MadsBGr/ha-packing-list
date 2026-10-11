@@ -20,6 +20,7 @@
       "fields": {
         "name": { "name": "Navn", "description": "Navnet på pakkelisten." },
         "trip_date": { "name": "Afrejsedato", "description": "Valgfri dato for turen." },
+        "templates": { "name": "Skabeloner", "description": "Hent alle punkter fra disse skabeloner (navn eller id)." },
         "tags": { "name": "Tags", "description": "Hent alle master-punkter med et af disse tags." },
         "categories": { "name": "Kategorier", "description": "Hent alle master-punkter i disse kategorier." },
         "items": { "name": "Punkter", "description": "Hent disse master-punkter (navn eller uid)." },
@@ -31,6 +32,7 @@
       "description": "Tilføjer punkter fra master-listen til en pakkeliste. Punkter der allerede er på listen springes over.",
       "fields": {
         "entity_id": { "name": "Pakkeliste", "description": "Pakkelisten der skal tilføjes til." },
+        "templates": { "name": "Skabeloner", "description": "Hent alle punkter fra disse skabeloner (navn eller id)." },
         "tags": { "name": "Tags", "description": "Hent alle master-punkter med et af disse tags." },
         "categories": { "name": "Kategorier", "description": "Hent alle master-punkter i disse kategorier." },
         "items": { "name": "Punkter", "description": "Hent disse master-punkter (navn eller uid)." },
@@ -44,6 +46,37 @@
         "items": { "name": "Punkter", "description": "Navnene på punkterne (en liste, eller ét pr. linje)." },
         "category": { "name": "Kategori", "description": "Kategori for alle punkterne, f.eks. Tøj." },
         "tags": { "name": "Tags", "description": "Tags for alle punkterne, f.eks. sommer, strand." }
+      }
+    },
+    "create_template": {
+      "name": "Opret skabelon",
+      "description": "Opretter en skabelon (f.eks. Vandretur) med et udvalg af master-punkter.",
+      "fields": {
+        "name": { "name": "Navn", "description": "Navnet på skabelonen." },
+        "templates": { "name": "Skabeloner", "description": "Medtag alle punkter fra disse skabeloner." },
+        "tags": { "name": "Tags", "description": "Medtag alle master-punkter med et af disse tags." },
+        "categories": { "name": "Kategorier", "description": "Medtag alle master-punkter i disse kategorier." },
+        "items": { "name": "Punkter", "description": "Medtag disse master-punkter (navn eller uid)." }
+      }
+    },
+    "update_template": {
+      "name": "Ret skabelon",
+      "description": "Omdøber en skabelon og/eller tilføjer og fjerner master-punkter.",
+      "fields": {
+        "template": { "name": "Skabelon", "description": "Skabelonens navn eller id." },
+        "name": { "name": "Nyt navn", "description": "Valgfrit nyt navn." },
+        "templates": { "name": "Skabeloner", "description": "Tilføj alle punkter fra disse skabeloner." },
+        "tags": { "name": "Tags", "description": "Tilføj alle master-punkter med et af disse tags." },
+        "categories": { "name": "Kategorier", "description": "Tilføj alle master-punkter i disse kategorier." },
+        "items": { "name": "Punkter", "description": "Tilføj disse master-punkter (navn eller uid)." },
+        "remove_items": { "name": "Fjern punkter", "description": "Fjern disse master-punkter fra skabelonen (navn eller uid)." }
+      }
+    },
+    "delete_template": {
+      "name": "Slet skabelon",
+      "description": "Sletter en skabelon. Master-punkterne og eksisterende pakkelister berøres ikke.",
+      "fields": {
+        "template": { "name": "Skabelon", "description": "Skabelonens navn eller id." }
       }
     },
     "reset_list": {

@@ -19,9 +19,12 @@ and packing.*
   `todo`-entitet plus en `sensor` med hvor mange procent der er pakket.
 - **Hent fra master** efter tags (`#ski`, `#fly` …), kategori eller enkeltvis. Punkter med `#altid`
   kommer automatisk med. Dubletter springes over.
+- **Skabeloner** som "Vandretur", "Sommerhus" og "Bilferie" er navngivne udvalg af master-punkter. Vælg en
+  eller flere, når du opretter en ny liste.
 - **Ekstra punkter** kan tilføjes til en enkelt tur uden at røre masteren.
 - **Nulstil** sætter en liste til "ikke pakket", så den kan genbruges til hjemrejsen.
-- **Medfølgende Lovelace-kort** med tre faner: *Pak*, *Vælg fra master* og *Master*. Integrationen
+- **Medfølgende Lovelace-kort** med fire faner: *Pak*, *Vælg fra master*, *Skabeloner* og *Master*.
+  Alt er sorteret alfabetisk inden for hver kategori. Integrationen
   opretter selv kortets ressource under Dashboards → Ressourcer.
 - Alt gemmes lokalt i `.storage`. Der er ingen cloud og ingen eksterne afhængigheder.
 
@@ -53,20 +56,26 @@ version, og genindlæser siden automatisk, så snart dashboardet med kortet vise
 type: custom:packing-list-card
 title: Pakkeliste            # valgfri
 entity: todo.skiferie_2027   # valgfri: den liste, der vises først
-default_tab: pack            # valgfri: pack | pick | master
+default_tab: pack            # valgfri: pack | pick | templates | master
 packed_mode: bottom          # valgfri: inline | bottom | hide
 ```
 
 | Fane | Hvad du gør |
 |---|---|
 | **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Du kan også nulstille listen og tilføje ekstra punkter. |
-| **Vælg fra master** | Sæt flueben ved det, der skal med. "+ #tag" henter alle punkter med et tag, "tilføj alle" henter en hel kategori. |
+| **Vælg fra master** | Sæt flueben ved det, der skal med. "+ Skabelon" henter alle punkter fra en skabelon, "+ #tag" henter alle punkter med et tag, og "tilføj alle" henter en hel kategori. |
+| **Skabeloner** | Opret, omdøb og slet skabeloner, og sæt flueben ved de master-punkter, der hører til hver skabelon. "+ #tag" og "tilføj alle" virker også her. |
 | **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Du kan også slette punkter. |
 
 Valget af visning for pakkede punkter huskes i den enkelte browser. `packed_mode` bestemmer kun, hvad der
 vises første gang.
 
-Med **+ Ny liste** opretter du en tur med navn, dato og de tags, der skal hentes.
+Med **+ Ny liste** opretter du en tur med navn og dato. Du vælger de skabeloner og tags, listen skal
+bygges ud fra. Et punkt, der findes i flere skabeloner, kommer kun med én gang.
+
+Skabelonerne peger på punkterne i masteren. Retter du navn, kategori eller tags på et punkt i masteren,
+gælder det derfor også i skabelonerne. Sletter du et punkt fra masteren, forsvinder det også fra skabelonerne.
+Pakkelister, du allerede har oprettet, ændres ikke.
 
 ## Kategorier og tags
 
@@ -89,8 +98,11 @@ Når et punkt kopieres til en tur, følger beskrivelsen med, så kategorierne og
 
 | Tjeneste | Beskrivelse |
 |---|---|
-| `packing_list.create_list` | Opret en liste: `name`, valgfrit `trip_date`, `tags`, `categories`, `items` og `include_always` (standard `true`). Returnerer `entity_id`. |
-| `packing_list.add_from_master` | Tilføj fra master til `entity_id` efter `tags`, `categories` eller `items` (navn eller uid). |
+| `packing_list.create_list` | Opret en liste: `name`, valgfrit `trip_date`, `templates`, `tags`, `categories`, `items` og `include_always` (standard `true`). Returnerer `entity_id`. |
+| `packing_list.add_from_master` | Tilføj fra master til `entity_id` efter `templates`, `tags`, `categories` eller `items` (navn eller uid). |
+| `packing_list.create_template` | Opret en skabelon: `name` plus valgfrit `templates`, `tags`, `categories` og `items`, som fylder den fra start. |
+| `packing_list.update_template` | Ret skabelonen `template` (navn eller id): nyt `name`, tilføj med `templates`, `tags`, `categories` og `items`, fjern med `remove_items`. |
+| `packing_list.delete_template` | Slet skabelonen `template`. |
 | `packing_list.add_master_items` | Tilføj flere punkter til masteren på én gang: `items` (en liste eller ét pr. linje), valgfrit `category` og `tags`. Navne, der allerede findes, springes over. |
 | `packing_list.reset_list` | Markér alle punkter som ikke pakket. |
 | `packing_list.delete_list` | Slet listen og dens entiteter. |
@@ -108,6 +120,14 @@ data:
   trip_date: "2027-02-06"
   tags: [ski, vinter]
 response_variable: result
+```
+
+```yaml
+# Script: sommerhustur ud fra to skabeloner
+action: packing_list.create_list
+data:
+  name: Sommerhus uge 29
+  templates: [Sommerhus, Bilferie]
 ```
 
 ```yaml

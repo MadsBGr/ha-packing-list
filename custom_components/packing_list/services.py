@@ -34,8 +34,14 @@ SERVICE_ADD_FROM_MASTER = "add_from_master"
 SERVICE_RESET_LIST = "reset_list"
 SERVICE_DELETE_LIST = "delete_list"
 SERVICE_ADD_MASTER_ITEMS = "add_master_items"
+SERVICE_CREATE_TEMPLATE = "create_template"
+SERVICE_UPDATE_TEMPLATE = "update_template"
+SERVICE_DELETE_TEMPLATE = "delete_template"
 
 ATTR_CATEGORY = "category"
+ATTR_TEMPLATES = "templates"
+ATTR_TEMPLATE = "template"
+ATTR_REMOVE_ITEMS = "remove_items"
 
 
 def _split_list(separator: str):
@@ -60,6 +66,7 @@ _SELECTION_SCHEMA = {
     vol.Optional(ATTR_TAGS, default=list): _string_list,
     vol.Optional(ATTR_CATEGORIES, default=list): _string_list,
     vol.Optional(ATTR_ITEMS, default=list): _string_list,
+    vol.Optional(ATTR_TEMPLATES, default=list): _string_list,
 }
 
 CREATE_LIST_SCHEMA = vol.Schema(
@@ -88,6 +95,19 @@ ADD_MASTER_ITEMS_SCHEMA = vol.Schema(
         vol.Optional(ATTR_TAGS, default=list): _string_list,
     }
 )
+
+CREATE_TEMPLATE_SCHEMA = vol.Schema({vol.Required(ATTR_NAME): cv.string, **_SELECTION_SCHEMA})
+
+UPDATE_TEMPLATE_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_TEMPLATE): cv.string,
+        vol.Optional(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_REMOVE_ITEMS, default=list): _string_list,
+        **_SELECTION_SCHEMA,
+    }
+)
+
+TEMPLATE_SCHEMA = vol.Schema({vol.Required(ATTR_TEMPLATE): cv.string})
 
 
 def get_manager(hass: HomeAssistant) -> PackingListManager:
@@ -120,23 +140,38 @@ def _resolve_list_id(hass: HomeAssistant, manager: PackingListManager, entity_id
     return list_id
 
 
+def _template_id(manager: PackingListManager, ref: str) -> str:
+    try:
+        return manager.find_template(ref).template_id
+    except KeyError:
+        raise ServiceValidationError(f"Skabelonen {ref} findes ikke") from None
+
+
+def _selection(manager: PackingListManager, data: dict[str, Any]) -> dict[str, Any]:
+    """Selection kwargs for the manager, with template names resolved to ids."""
+    selection = {
+        "items": data[ATTR_ITEMS],
+        "tags": data[ATTR_TAGS],
+        "categories": data[ATTR_CATEGORIES],
+        "templates": [_template_id(manager, ref) for ref in data[ATTR_TEMPLATES]],
+    }
+    if ATTR_INCLUDE_ALWAYS in data:
+        selection["include_always"] = data[ATTR_INCLUDE_ALWAYS]
+    return selection
+
+
 @callback
 def async_register_services(hass: HomeAssistant) -> None:
     """Register the integration's services."""
 
     async def create_list(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
+        selection = _selection(manager, call.data)
         trip_date = call.data.get(ATTR_TRIP_DATE)
         plist = manager.create_list(
             call.data[ATTR_NAME], trip_date.isoformat() if trip_date else None
         )
-        added = manager.add_from_master(
-            plist.list_id,
-            items=call.data[ATTR_ITEMS],
-            tags=call.data[ATTR_TAGS],
-            categories=call.data[ATTR_CATEGORIES],
-            include_always=call.data[ATTR_INCLUDE_ALWAYS],
-        )
+        added = manager.add_from_master(plist.list_id, **selection)
         async_dispatcher_send(hass, SIGNAL_LIST_ADDED, plist.list_id)
 
         # Entities are added asynchronously; wait briefly so we can return the id.
@@ -150,13 +185,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def add_from_master(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
         list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
-        added = manager.add_from_master(
-            list_id,
-            items=call.data[ATTR_ITEMS],
-            tags=call.data[ATTR_TAGS],
-            categories=call.data[ATTR_CATEGORIES],
-            include_always=call.data[ATTR_INCLUDE_ALWAYS],
-        )
+        added = manager.add_from_master(list_id, **_selection(manager, call.data))
         return {"added": added}
 
     async def reset_list(call: ServiceCall) -> None:
@@ -181,6 +210,44 @@ def async_register_services(hass: HomeAssistant) -> None:
         )
         return {"added": added, "skipped": len(items) - added}
 
+    async def create_template(call: ServiceCall) -> ServiceResponse:
+        manager = get_manager(hass)
+        uids = [item.uid for item in manager.select_master(**_selection(manager, call.data))]
+        try:
+            template = manager.create_template(call.data[ATTR_NAME], uids)
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
+        return {"template_id": template.template_id, "name": template.name, "items": len(uids)}
+
+    async def update_template(call: ServiceCall) -> None:
+        manager = get_manager(hass)
+        template_id = _template_id(manager, call.data[ATTR_TEMPLATE])
+        add = [item.uid for item in manager.select_master(**_selection(manager, call.data))]
+        remove = [item.uid for item in manager.select_master(items=call.data[ATTR_REMOVE_ITEMS])]
+        try:
+            manager.update_template(
+                template_id, name=call.data.get(ATTR_NAME), add=add, remove=remove
+            )
+        except ValueError as err:
+            raise ServiceValidationError(str(err)) from err
+
+    async def delete_template(call: ServiceCall) -> None:
+        manager = get_manager(hass)
+        manager.delete_template(_template_id(manager, call.data[ATTR_TEMPLATE]))
+
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_CREATE_TEMPLATE,
+        create_template,
+        schema=CREATE_TEMPLATE_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_UPDATE_TEMPLATE, update_template, schema=UPDATE_TEMPLATE_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_DELETE_TEMPLATE, delete_template, schema=TEMPLATE_SCHEMA
+    )
     hass.services.async_register(
         DOMAIN,
         SERVICE_ADD_MASTER_ITEMS,
