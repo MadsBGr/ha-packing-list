@@ -42,8 +42,9 @@ Kopiér `custom_components/packing_list` til `config/custom_components/` og gens
 ## Kortet
 
 Integrationen tilføjer automatisk `/packing_list/packing-list-card.js` som ressource (JavaScript-modul)
-og opdaterer versionsnummeret ved hver opdatering. Genindlæs browseren (Ctrl+Shift+R) efter installation
-eller opdatering.
+og opdaterer versionsnummeret ved hver opdatering. Efter den første installation skal browseren genindlæses
+én gang (Ctrl+Shift+R). Ved senere opdateringer opdager kortet selv, at Home Assistant kører en nyere
+version, og genindlæser siden automatisk, så snart dashboardet med kortet vises.
 
 > Bruger du dashboards i **YAML-tilstand**, kan integrationen ikke ændre ressourcerne. Så skal du selv
 > tilføje `/packing_list/packing-list-card.js` med `type: module` under `lovelace: resources:`.
@@ -58,7 +59,7 @@ packed_mode: bottom          # valgfri: inline | bottom | hide
 
 | Fane | Hvad du gør |
 |---|---|
-| **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Du kan også nulstille listen og tilføje ekstra punkter. |
+| **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Du kan også nulstille listen og tilføje ekstra punkter. |
 | **Vælg fra master** | Sæt flueben ved det, der skal med. "+ #tag" henter alle punkter med et tag, "tilføj alle" henter en hel kategori. |
 | **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Du kan også slette punkter. |
 

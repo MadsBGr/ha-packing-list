@@ -9,7 +9,8 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.2.0";
+const CARD_VERSION = "0.3.0";
+const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const UNCATEGORIZED = "Andet";
 const ALWAYS_TAG = "altid";
 const PACKED_MODES = [
@@ -135,18 +136,41 @@ class PackingListCard extends HTMLElement {
     // Refetch when any packing list entity reports a new revision or one appears/disappears.
     let revision = 0;
     let count = 0;
+    let version = null;
     for (const state of Object.values(hass.states)) {
       const attrs = state.attributes;
       if (attrs && attrs.packing_list_id !== undefined) {
         count += 1;
         revision = Math.max(revision, attrs.revision || 0);
+        version = version || attrs.version;
       }
     }
+    this._checkVersion(version);
     const sig = `${revision}|${count}`;
     if (sig !== this._sig) {
       this._sig = sig;
       this._fetch();
     }
+  }
+
+  // After an update + restart the browser still runs the old card. Reload the page once
+  // so it picks up the new version; sessionStorage guards against reload loops.
+  _checkVersion(version) {
+    if (!version || version === CARD_VERSION || version === this._checkedVersion) return;
+    this._checkedVersion = version;
+    let reloadedFor = null;
+    try {
+      reloadedFor = sessionStorage.getItem(RELOADED_FOR_KEY);
+      if (reloadedFor !== version) {
+        sessionStorage.setItem(RELOADED_FOR_KEY, version);
+        location.reload();
+        return;
+      }
+    } catch {
+      // No sessionStorage: can't guard against loops, so ask instead of reloading.
+    }
+    this._versionWarning = `Pakkelister er opdateret til ${version}. Genindlæs browseren (Ctrl+Shift+R).`;
+    this._render();
   }
 
   async _fetch() {
@@ -208,7 +232,10 @@ class PackingListCard extends HTMLElement {
         this._renderTabs() +
         this._renderTab();
     }
-    const error = this._error ? `<div class="error">${esc(this._error)}</div>` : "";
+    const error = [this._versionWarning, this._error]
+      .filter(Boolean)
+      .map((msg) => `<div class="error">${esc(msg)}</div>`)
+      .join("");
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <ha-card>${title ? `<div class="title">${esc(title)}</div>` : ""}${error}${body}</ha-card>`;
   }
@@ -294,8 +321,7 @@ class PackingListCard extends HTMLElement {
       .map(([cat, catItems]) => `<div class="cat">${esc(cat)}</div>` + catItems.map((i) => this._packRow(i)).join(""))
       .join("");
     if (mode === "bottom" && packed.length) {
-      // Packed items keep the category order so related things stay together.
-      const sorted = this._group(packed).flatMap(([, catItems]) => catItems);
+      const sorted = [...packed].sort((a, b) => a.summary.localeCompare(b.summary, "da"));
       groups += `<div class="cat packed-head">Pakket (${packed.length})</div>` + sorted.map((i) => this._packRow(i)).join("");
     }
     const empty = list.items.length

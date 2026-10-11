@@ -3,7 +3,7 @@
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.packing_list.const import DOMAIN, SEED_ITEMS
+from custom_components.packing_list.const import DOMAIN, SEED_ITEMS, VERSION
 from custom_components.packing_list.manager import parse_description
 
 MASTER = "todo.pakkeliste_master"
@@ -57,6 +57,7 @@ async def test_create_list_from_tags(hass: HomeAssistant, setup_entry) -> None:
 
     state = hass.states.get(entity_id)
     assert state.attributes["trip_date"] == "2027-02-06"
+    assert state.attributes["version"] == VERSION
     assert hass.states.get("sensor.skiferie_pakket").state == "0"
 
 

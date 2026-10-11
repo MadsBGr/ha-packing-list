@@ -15,7 +15,13 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PackingListConfigEntry
-from .const import MASTER_KEY, SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX, UNIQUE_ID_MASTER
+from .const import (
+    MASTER_KEY,
+    SIGNAL_LIST_ADDED,
+    UNIQUE_ID_LIST_PREFIX,
+    UNIQUE_ID_MASTER,
+    VERSION,
+)
 from .manager import PackingListManager
 
 
@@ -82,7 +88,11 @@ class _PackingTodoEntity(TodoListEntity):
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
         """Attributes used by the card to detect changes."""
-        return {"packing_list_id": self._key, "revision": self._manager.revision}
+        return {
+            "packing_list_id": self._key,
+            "revision": self._manager.revision,
+            "version": VERSION,
+        }
 
     async def async_create_todo_item(self, item: TodoItem) -> None:
         """Add an item."""
