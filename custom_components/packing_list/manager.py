@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable, Iterable
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, fields
 import re
 from typing import Any
 import uuid
@@ -25,6 +25,17 @@ _TAG_RE = re.compile(r"(?<!\S)#([^\s#@]+)")
 _CATEGORY_RE = re.compile(r"(?<!\S)@([^\s#@]+)")
 
 SAVE_DELAY = 1
+
+# Default for optional arguments where None means "clear the value".
+KEEP: Any = object()
+
+
+class DuplicateItemError(ValueError):
+    """An item with the same name already exists in that category."""
+
+
+class AmbiguousItemError(KeyError):
+    """Several master items have that name (in different categories)."""
 
 
 def normalize_tag(tag: str) -> str:
@@ -60,6 +71,28 @@ def _same_category(a: str | None, b: str | None) -> bool:
     return (a or "").strip().casefold() == (b or "").strip().casefold()
 
 
+def item_key(summary: str, category: str | None) -> tuple[str, str]:
+    """What makes an item unique: the same name may exist once per category."""
+    return summary.strip().casefold(), (category or "").strip().casefold()
+
+
+def _clean_quantity(value: int | None) -> int | None:
+    return int(value) if value is not None and int(value) > 0 else None
+
+
+def _clean_weight(value: float | None) -> float | None:
+    if value is None or float(value) <= 0:
+        return None
+    value = float(value)
+    return int(value) if value.is_integer() else value
+
+
+def _from_dict(cls: type, data: dict[str, Any]) -> Any:
+    """Build a dataclass from stored data, ignoring unknown keys."""
+    names = {f.name for f in fields(cls)}
+    return cls(**{key: value for key, value in data.items() if key in names})
+
+
 def _new_uid() -> str:
     return uuid.uuid4().hex
 
@@ -81,11 +114,24 @@ class PackingItem:
     description: str = ""
     packed: bool = False
     master_uid: str | None = None
+    # Optional number of pieces and weight per piece in grams.
+    quantity: int | None = None
+    weight: float | None = None
 
     @property
     def category(self) -> str | None:
         """Category parsed from the description."""
         return parse_description(self.description)[0]
+
+    @property
+    def key(self) -> tuple[str, str]:
+        """Name and category; unique within a list."""
+        return item_key(self.summary, self.category)
+
+    @property
+    def total_weight(self) -> float:
+        """Weight of all pieces in grams (0 if no weight is set)."""
+        return (self.weight or 0) * (self.quantity or 1)
 
     @property
     def tags(self) -> list[str]:
@@ -117,6 +163,19 @@ class PackingList:
     include_always: bool = False
     # Master uids removed from the list; never re-added automatically.
     excluded: list[str] = field(default_factory=list)
+    notes: str = ""
+    use_weight: bool = False
+    archived: bool = False
+
+    @property
+    def total_weight(self) -> float:
+        """Weight of everything on the list in grams."""
+        return sum(item.total_weight for item in self.items)
+
+    @property
+    def packed_weight(self) -> float:
+        """Weight of what is packed in grams."""
+        return sum(item.total_weight for item in self.items if item.packed)
 
 
 class PackingListManager:
@@ -148,9 +207,10 @@ class PackingListManager:
                 self.master = _seed_items(self.language)
             self._schedule_save()
             return
-        self.master = [PackingItem(**item) for item in data.get("master", [])]
+        self.master = [_from_dict(PackingItem, item) for item in data.get("master", [])]
         for raw in data.get("lists", []):
-            plist = PackingList(**{**raw, "items": [PackingItem(**i) for i in raw.get("items", [])]})
+            items = [_from_dict(PackingItem, i) for i in raw.get("items", [])]
+            plist = _from_dict(PackingList, {**raw, "items": items})
             self.lists[plist.list_id] = plist
 
     def _data_to_save(self) -> dict[str, Any]:
@@ -202,12 +262,26 @@ class PackingListManager:
         raise KeyError(uid)
 
     def find_master(self, ref: str) -> PackingItem:
-        """Find a master item by uid or (case-insensitive) name."""
-        key = ref.strip().casefold()
+        """Find a master item by uid or (case-insensitive) name.
+
+        Raises KeyError if there is none and AmbiguousItemError if the name
+        exists in several categories.
+        """
         for item in self.master:
-            if item.uid == ref or item.summary.casefold() == key:
+            if item.uid == ref:
                 return item
-        raise KeyError(ref)
+        key = ref.strip().casefold()
+        matches = [item for item in self.master if item.summary.casefold() == key]
+        if len(matches) > 1:
+            raise AmbiguousItemError(ref)
+        if not matches:
+            raise KeyError(ref)
+        return matches[0]
+
+    def master_by_key(self, summary: str, category: str | None) -> PackingItem | None:
+        """The master item with this name in this category, if any."""
+        key = item_key(summary, category)
+        return next((item for item in self.master if item.key == key), None)
 
     @callback
     def create_item(
@@ -231,15 +305,21 @@ class PackingListManager:
         category: str | None = None,
         tags: Iterable[str] = (),
         move: Iterable[str] = (),
+        duplicate: Iterable[str] = (),
     ) -> dict[str, int]:
         """Add several items to the master list sharing category and tags.
 
-        For names that already exist the new tags are added, and the item is
-        moved to ``category`` only if its name is in ``move``. Returns counts
-        of added, moved, tagged (got new tags) and skipped (unchanged) items.
+        A name may exist once per category. If the name already exists in
+        ``category`` that item gets the new tags. If it only exists in other
+        categories it is created anew in ``category`` if its name is in
+        ``duplicate``, moved there if its name is in ``move``, and otherwise
+        the existing item just gets the new tags. Returns counts of added,
+        moved, tagged (got new tags) and skipped (unchanged) items.
         """
         tags = [tag for tag in dict.fromkeys(map(normalize_tag, tags)) if tag]
         move_keys = {name.strip().casefold() for name in move}
+        duplicate_keys = {name.strip().casefold() for name in duplicate}
+        has_category = bool(category and category.strip())
         counts = {"added": 0, "moved": 0, "tagged": 0, "skipped": 0}
         seen: set[str] = set()
         new_items = []
@@ -250,9 +330,11 @@ class PackingListManager:
             if not summary or key in seen:
                 continue
             seen.add(key)
-            try:
-                existing = self.find_master(summary)
-            except KeyError:
+            same_name = [item for item in self.master if item.summary.casefold() == key]
+            existing = self.master_by_key(summary, category)
+            if not same_name or (
+                existing is None and has_category and key in duplicate_keys
+            ):
                 new_items.append(
                     PackingItem(
                         uid=_new_uid(),
@@ -263,12 +345,9 @@ class PackingListManager:
                 counts["added"] += 1
                 continue
 
+            moved = existing is None and has_category and key in move_keys
+            existing = existing or same_name[0]
             old_category, old_tags, _ = parse_description(existing.description)
-            moved = (
-                key in move_keys
-                and bool(category and category.strip())
-                and not _same_category(old_category, category)
-            )
             extra_tags = [tag for tag in tags if tag not in old_tags]
             if not moved and not extra_tags:
                 counts["skipped"] += 1
@@ -286,17 +365,26 @@ class PackingListManager:
         return counts
 
     def _set_master_meta(
-        self, item: PackingItem, *, category: str | None, tags: Iterable[str]
+        self,
+        item: PackingItem,
+        *,
+        category: str | None,
+        tags: Iterable[str],
+        weight: float | None = KEEP,
     ) -> None:
-        """Set category/tags of a master item and of its copies on trip lists."""
+        """Set category/tags (and weight) of a master item and of its copies on trip lists."""
         tags = list(tags)
         item.description = build_description(category, tags, parse_description(item.description)[2])
+        if weight is not KEEP:
+            item.weight = weight
         for plist in self.lists.values():
             touched = False
             for list_item in plist.items:
                 if list_item.master_uid == item.uid:
                     notes = parse_description(list_item.description)[2]
                     list_item.description = build_description(category, tags, notes)
+                    if weight is not KEEP:
+                        list_item.weight = weight
                     touched = True
             if touched:
                 self._changed(plist.list_id)
@@ -309,20 +397,33 @@ class PackingListManager:
         summary: str | None = None,
         category: str | None = None,
         tags: Iterable[str] | None = None,
+        quantity: int | None = KEEP,
+        weight: float | None = KEEP,
     ) -> None:
-        """Rename an item and/or change its category and tags.
+        """Rename an item and/or change its category, tags, quantity and weight.
 
-        ``None`` keeps the current value; an empty category removes it.
-        Category and tag changes are also applied to copies on trip lists.
+        ``None`` keeps the current name, category and tags; an empty category
+        removes it. For quantity and weight ``None`` clears the value and
+        leaving them out keeps it. Category, tag and weight changes are also
+        applied to copies on trip lists; the quantity is only the default for
+        new copies. Raises DuplicateItemError if another item already has the
+        new name in the new category.
         """
         item = self._find(MASTER_KEY, uid)
-        if summary is not None and summary.strip():
-            item.summary = summary.strip()
         old_category, old_tags, _ = parse_description(item.description)
+        new_summary = summary.strip() if summary and summary.strip() else item.summary
+        new_category = old_category if category is None else category
+        other = self.master_by_key(new_summary, new_category)
+        if other is not None and other is not item:
+            raise DuplicateItemError(new_summary)
+        item.summary = new_summary
+        if quantity is not KEEP:
+            item.quantity = _clean_quantity(quantity)
         self._set_master_meta(
             item,
-            category=old_category if category is None else category,
+            category=new_category,
             tags=old_tags if tags is None else tags,
+            weight=weight if weight is KEEP else _clean_weight(weight),
         )
         self._changed(MASTER_KEY)
 
@@ -333,16 +434,24 @@ class PackingListManager:
         Trip lists keep their items; their links to the master are re-made by
         name, so items that also exist in the default list stay connected.
         """
-        old_names = {item.uid: item.summary.casefold() for item in self.master}
+        old_keys = {item.uid: item.key for item in self.master}
         self.master = _seed_items(self.language)
-        by_name = {item.summary.casefold(): item.uid for item in self.master}
+        by_key = {item.key: item.uid for item in self.master}
+        by_name: dict[str, str] = {}
+        for item in self.master:
+            by_name.setdefault(item.key[0], item.uid)
+
+        def relink(key: tuple[str, str]) -> str | None:
+            # Same name and category, else just the same name.
+            return by_key.get(key) or by_name.get(key[0])
+
         for plist in self.lists.values():
             for list_item in plist.items:
-                list_item.master_uid = by_name.get(list_item.summary.casefold())
+                list_item.master_uid = relink(list_item.key)
             plist.excluded = [
-                by_name[old_names[uid]]
+                new_uid
                 for uid in plist.excluded
-                if old_names.get(uid) in by_name
+                if uid in old_keys and (new_uid := relink(old_keys[uid]))
             ]
             self._changed(plist.list_id)
         self._changed(MASTER_KEY)
@@ -388,12 +497,77 @@ class PackingListManager:
     # --------------------------------------------------------------- lists
 
     @callback
-    def create_list(self, name: str, trip_date: str | None = None) -> PackingList:
+    def create_list(
+        self,
+        name: str,
+        trip_date: str | None = None,
+        *,
+        use_weight: bool = False,
+        notes: str = "",
+    ) -> PackingList:
         """Create an empty trip list."""
-        plist = PackingList(list_id=_new_uid(), name=name.strip(), trip_date=trip_date)
+        plist = PackingList(
+            list_id=_new_uid(),
+            name=name.strip(),
+            trip_date=trip_date,
+            use_weight=use_weight,
+            notes=notes.strip(),
+        )
         self.lists[plist.list_id] = plist
         self._changed(plist.list_id)
         return plist
+
+    @callback
+    def update_list(
+        self,
+        list_id: str,
+        *,
+        trip_date: str | None = KEEP,
+        notes: str | None = None,
+        use_weight: bool | None = None,
+        archived: bool | None = None,
+    ) -> None:
+        """Change a trip list's date, notes, weight setting or archived state.
+
+        ``None`` keeps a value; for ``trip_date`` ``None`` clears it.
+        """
+        plist = self.lists[list_id]
+        if trip_date is not KEEP:
+            plist.trip_date = trip_date
+        if notes is not None:
+            plist.notes = notes.strip()
+        if use_weight is not None:
+            plist.use_weight = use_weight
+        if archived is not None:
+            plist.archived = archived
+        self._changed(list_id)
+
+    @callback
+    def update_list_item(
+        self,
+        list_id: str,
+        uid: str,
+        *,
+        quantity: int | None = KEEP,
+        weight: float | None = KEEP,
+        to_master: bool = False,
+    ) -> None:
+        """Set the quantity and/or weight of a trip list item (``None`` clears).
+
+        With ``to_master`` a new weight is also saved on the linked master
+        item, and from there on every list that has it.
+        """
+        item = self._find(list_id, uid)
+        if quantity is not KEEP:
+            item.quantity = _clean_quantity(quantity)
+        if weight is not KEEP:
+            item.weight = _clean_weight(weight)
+            master_item = next((m for m in self.master if m.uid == item.master_uid), None)
+            if to_master and master_item is not None:
+                category, tags, _ = parse_description(master_item.description)
+                self._set_master_meta(master_item, category=category, tags=tags, weight=item.weight)
+                self._changed(MASTER_KEY)
+        self._changed(list_id)
 
     @callback
     def delete_list(self, list_id: str) -> None:
@@ -441,15 +615,16 @@ class PackingListManager:
         wanted_categories = {cat.casefold() for cat in wanted_categories}
 
         have_master = {item.master_uid for item in plist.items if item.master_uid}
-        have_summary = {item.summary.casefold() for item in plist.items}
+        have_keys = {item.key for item in plist.items}
         excluded = set(plist.excluded)
 
         added = 0
         for master_item in self.master:
             summary_key = master_item.summary.casefold()
-            if master_item.uid in have_master or summary_key in have_summary:
-                continue
             category, item_tags, _ = parse_description(master_item.description)
+            key = item_key(master_item.summary, category)
+            if master_item.uid in have_master or key in have_keys:
+                continue
             explicit = master_item.uid in wanted_refs or summary_key in wanted_refs
             matched = wanted_tags.intersection(item_tags) or (
                 category is not None and category.casefold() in wanted_categories
@@ -466,10 +641,12 @@ class PackingListManager:
                     summary=master_item.summary,
                     description=master_item.description,
                     master_uid=master_item.uid,
+                    quantity=master_item.quantity,
+                    weight=master_item.weight,
                 )
             )
             have_master.add(master_item.uid)
-            have_summary.add(summary_key)
+            have_keys.add(key)
             added += 1
 
         plist.excluded = [uid for uid in plist.excluded if uid in excluded]
@@ -497,10 +674,20 @@ class PackingListManager:
         *,
         category: str | None = None,
         tags: Iterable[str] = (),
+        quantity: int | None = None,
+        weight: float | None = None,
         to_master: bool = False,
     ) -> PackingItem:
         """Add an item to a trip list, optionally also saving it on the master list."""
-        item = self.create_item(list_id, summary, build_description(category, tags))
+        item = PackingItem(
+            uid=_new_uid(),
+            summary=summary.strip(),
+            description=build_description(category, tags),
+            quantity=_clean_quantity(quantity),
+            weight=_clean_weight(weight),
+        )
+        self.lists[list_id].items.append(item)
+        self._changed(list_id)
         if to_master:
             self.copy_to_master(list_id, item.uid)
         return item
@@ -517,8 +704,9 @@ class PackingListManager:
         """Save a trip list item on the master list and link the two.
 
         ``category``/``tags`` default to the list item's own. If the name
-        already exists on the master list, that item gets the new tags (and
-        the category if it has none) instead of a duplicate being created.
+        already exists in that category on the master list, that item gets the
+        new tags (and the weight if it has none) instead of a duplicate being
+        created. The same name in another category is a separate item.
         """
         plist = self.lists[list_id]
         list_item = self._find(list_id, uid)
@@ -526,21 +714,27 @@ class PackingListManager:
         category = own_category if category is None else category
         tags = own_tags if tags is None else [normalize_tag(t) for t in tags]
 
-        try:
-            master_item = self.find_master(list_item.summary)
-        except KeyError:
+        master_item = self.master_by_key(list_item.summary, category)
+        if master_item is None:
             master_item = PackingItem(
                 uid=_new_uid(),
                 summary=list_item.summary,
                 description=build_description(category, tags),
+                quantity=list_item.quantity,
+                weight=list_item.weight,
             )
             self.master.append(master_item)
         else:
             old_category, old_tags, _ = parse_description(master_item.description)
             self._set_master_meta(
                 master_item,
-                category=old_category or category,
+                category=old_category,
                 tags=[*old_tags, *(t for t in tags if t not in old_tags)],
+                weight=(
+                    list_item.weight
+                    if master_item.weight is None and list_item.weight is not None
+                    else KEEP
+                ),
             )
 
         master_category, master_tags, _ = parse_description(master_item.description)

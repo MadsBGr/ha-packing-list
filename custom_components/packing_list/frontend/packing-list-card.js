@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.9.0";
+const CARD_VERSION = "0.10.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODE_KEY = "packing-list-card.packed-mode";
 const PACKED_MODES = ["inline", "bottom", "hide"];
@@ -93,7 +93,6 @@ const STRINGS = {
     fetchedOne: "1 item added",
     fetchedMany: "{count} items added",
     nothingFetched: "No new items to add",
-    moveQuestion: '"{name}" already exists in {from}.\nMove it to "{category}"?',
     inCategory: 'the category "{category}"',
     noCategory: "no category",
     moveYes: "Move to {category}",
@@ -118,6 +117,27 @@ const STRINGS = {
     againOne: "Add it again",
     againMany: "Add them again",
     andMore: " and {count} more",
+    newCategory: 'New category "{category}"',
+    quantity: "Quantity",
+    quantityOptional: "Quantity (optional)",
+    weightPerPiece: "Weight per piece (g)",
+    useWeight: "Use weight on this list",
+    weightProgress: "{packed} of {total}",
+    saveWeightToMaster: "Also save the weight in the master list",
+    editItemTitle: "Quantity and weight",
+    editList: "Edit list",
+    editListTitle: "Date, notes and weight",
+    notes: "Notes",
+    notesPlaceholder: "Notes for this list, e.g. what to buy before the trip",
+    archive: "Archive list",
+    unarchive: "Restore from archive",
+    archivedHeading: "Archived",
+    archivedNotice: "This list is archived.",
+    duplicateName: 'There is already an item named "{name}" in {category}.',
+    duplicateQuestion: '"{name}" already exists in {from}.\nMove it to "{category}", or create it as a separate item in "{category}"?',
+    duplicateMany: '"{name}" already exists in {from}.\nCreate it as a separate item in "{category}" too?',
+    createNew: "Create new in {category}",
+    andWord: " and ",
   },
   da: {
     title: "Pakkeliste",
@@ -192,7 +212,6 @@ const STRINGS = {
     fetchedOne: "1 punkt hentet",
     fetchedMany: "{count} punkter hentet",
     nothingFetched: "Ingen nye punkter at hente",
-    moveQuestion: '"{name}" findes allerede i {from}.\nSkal den flyttes til "{category}"?',
     inCategory: 'kategorien "{category}"',
     noCategory: "ingen kategori",
     moveYes: "Flyt til {category}",
@@ -217,6 +236,27 @@ const STRINGS = {
     againOne: "Hent den igen",
     againMany: "Hent dem igen",
     andMore: " og {count} flere",
+    newCategory: 'Ny kategori "{category}"',
+    quantity: "Antal",
+    quantityOptional: "Antal (valgfrit)",
+    weightPerPiece: "Vægt pr. stk. (g)",
+    useWeight: "Brug vægt på denne liste",
+    weightProgress: "{packed} af {total}",
+    saveWeightToMaster: "Gem også vægten i master-listen",
+    editItemTitle: "Antal og vægt",
+    editList: "Ret liste",
+    editListTitle: "Dato, noter og vægt",
+    notes: "Noter",
+    notesPlaceholder: "Noter til listen, f.eks. hvad der skal købes inden turen",
+    archive: "Arkivér liste",
+    unarchive: "Hent tilbage fra arkivet",
+    archivedHeading: "Arkiverede",
+    archivedNotice: "Listen er arkiveret.",
+    duplicateName: 'Der findes allerede et punkt med navnet "{name}" i {category}.',
+    duplicateQuestion: '"{name}" findes allerede i {from}.\nSkal den flyttes til "{category}", eller oprettes som et separat punkt i "{category}"?',
+    duplicateMany: '"{name}" findes allerede i {from}.\nSkal den også oprettes som et separat punkt i "{category}"?',
+    createNew: "Opret ny i {category}",
+    andWord: " og ",
   },
 };
 
@@ -232,6 +272,19 @@ const splitTags = (text) =>
     .split(/[,\s]+/)
     .map((t) => t.replace(/^#/, "").trim().toLowerCase())
     .filter(Boolean);
+
+// "250", "1,5 kg", "1.5kg" -> grams; empty or invalid -> null.
+const parseWeight = (text) => {
+  const match = String(text ?? "").trim().replace(",", ".").match(/^(\d+(?:\.\d+)?|\.\d+)\s*(kg|g)?$/i);
+  if (!match) return null;
+  const grams = Number(match[1]) * (match[2]?.toLowerCase() === "kg" ? 1000 : 1);
+  return grams > 0 ? grams : null;
+};
+const parseQuantity = (text) => {
+  const value = parseInt(String(text ?? "").trim(), 10);
+  return value > 0 ? value : null;
+};
+const itemWeight = (item) => (item.weight || 0) * (item.quantity || 1);
 
 const loadPackedMode = () => {
   try {
@@ -300,6 +353,20 @@ const STYLE = `
   .tagpicker { display: flex; flex-direction: column; gap: 6px; }
   .tagpicker .chip.on .x { margin-left: 4px; opacity: .8; }
   .tagpicker .suggest .chip { border-style: dashed; }
+  .combo { display: flex; flex-direction: column; flex: 1; min-width: 120px; }
+  .combo input { width: 100%; }
+  .combo-list { margin-top: 2px; max-height: 220px; overflow-y: auto; border: 1px solid var(--divider-color); border-radius: 6px; background: var(--card-background-color); }
+  .combo-list[hidden] { display: none; }
+  .combo-opt { padding: 8px; cursor: pointer; }
+  .combo-opt:hover, .combo-opt.hl { background: var(--secondary-background-color); }
+  .combo-opt.new { color: var(--primary-color); font-style: italic; }
+  .qty { color: var(--secondary-text-color); margin-right: 4px; }
+  .weight { font-size: .8em; color: var(--secondary-text-color); white-space: nowrap; }
+  .cat .weight { font-size: 1em; text-transform: none; letter-spacing: 0; font-weight: normal; }
+  .fields { display: flex; gap: 8px; flex-wrap: wrap; }
+  .fields input { min-width: 100px; }
+  .notesbox { white-space: pre-line; cursor: pointer; font-size: .9em; }
+  .archived { background: rgba(127, 127, 127, .12); }
 `;
 
 class PackingListCard extends HTMLElement {
@@ -332,9 +399,27 @@ class PackingListCard extends HTMLElement {
         if (ev.target.value.includes(",")) this._addDraftTags(tagKey);
         else this._updateSuggestions(tagKey);
       }
+      if (ev.target.dataset.catkey) this._openCombo(ev.target.dataset.catkey);
+    });
+    // Category fields: the list of categories opens on focus and closes when leaving the field.
+    root.addEventListener("focusin", (ev) => {
+      if (ev.target.dataset?.catkey) this._openCombo(ev.target.dataset.catkey);
+    });
+    // Closing is delayed a little, so a click on a button below the list lands before the layout shifts.
+    root.addEventListener("focusout", (ev) => {
+      const input = ev.target;
+      if (!input.dataset?.catkey) return;
+      setTimeout(() => {
+        if (this.shadowRoot.activeElement !== input) this._closeCombo(input.dataset.catkey);
+      }, 200);
+    });
+    // Keep the focus in the field when an option is clicked/tapped.
+    root.addEventListener("mousedown", (ev) => {
+      if (ev.target.closest(".combo-opt")) ev.preventDefault();
     });
     root.addEventListener("change", (ev) => this._onChange(ev));
     root.addEventListener("keydown", (ev) => {
+      if (ev.target.dataset.catkey && this._comboKey(ev)) return;
       // In a textarea Enter makes a new line; Ctrl/Cmd+Enter submits.
       const submit = ev.target.tagName === "TEXTAREA" ? ev.ctrlKey || ev.metaKey : true;
       if (ev.key === "Enter" && submit && ev.target.dataset.enter) {
@@ -342,6 +427,8 @@ class PackingListCard extends HTMLElement {
         this._action(ev.target.dataset.enter, ev.target);
       } else if (ev.key === "Escape" && this._editUid) {
         this._action("cancel-edit");
+      } else if (ev.key === "Escape" && this._editItemUid) {
+        this._action("cancel-edit-item");
       }
     });
   }
@@ -431,7 +518,7 @@ class PackingListCard extends HTMLElement {
     const lists = this._data?.lists || [];
     if (this._listId && lists.some((l) => l.list_id === this._listId)) return;
     const configured = this._config.entity && lists.find((l) => l.entity_id === this._config.entity);
-    this._listId = (configured || lists[0])?.list_id ?? null;
+    this._listId = (configured || lists.find((l) => !l.archived) || lists[0])?.list_id ?? null;
     this._exitDeleteMode();
   }
 
@@ -457,10 +544,41 @@ class PackingListCard extends HTMLElement {
     return [...tags].sort((a, b) => a.localeCompare(b, this._lang));
   }
 
+  // All categories in use on the master list and the packing lists (case-insensitively unique).
   _categories() {
-    return [...new Set((this._data?.master || []).map((m) => m.category).filter(Boolean))].sort((a, b) =>
-      a.localeCompare(b, this._lang),
-    );
+    const cats = new Map();
+    const items = [...(this._data?.master || []), ...(this._data?.lists || []).flatMap((l) => l.items)];
+    for (const { category } of items) {
+      if (category && !cats.has(category.toLowerCase())) cats.set(category.toLowerCase(), category);
+    }
+    return [...cats.values()].sort((a, b) => a.localeCompare(b, this._lang));
+  }
+
+  // Weight is offered once a list uses it or a master item has a weight.
+  get _weightInUse() {
+    return (this._data?.lists || []).some((l) => l.use_weight) || (this._data?.master || []).some((m) => m.weight);
+  }
+
+  _fmtWeight(grams) {
+    const kg = grams >= 1000;
+    const value = (kg ? grams / 1000 : grams).toLocaleString(this._lang, { maximumFractionDigits: kg ? 2 : 0 });
+    return `${value} ${kg ? "kg" : "g"}`;
+  }
+
+  // Quantity in front of the name, e.g. "3× Socks".
+  _qty(item) {
+    return item.quantity ? `<span class="qty">${esc(item.quantity)}×</span>` : "";
+  }
+
+  _weightLabel(item) {
+    if (!item.weight) return "";
+    const title = item.quantity > 1 ? ` title="${esc(`${item.quantity} × ${this._fmtWeight(item.weight)}`)}"` : "";
+    return `<span class="weight"${title}>${esc(this._fmtWeight(itemWeight(item)))}</span>`;
+  }
+
+  // Text for an input holding a weight in grams.
+  _weightValue(grams) {
+    return grams ? String(grams).replace(".", this._lang === "da" ? "," : ".") : "";
   }
 
   _categoryLabel(cat) {
@@ -538,6 +656,76 @@ class PackingListCard extends HTMLElement {
   // Selected tags plus anything still in the input (so a typed tag isn't lost on save).
   _tagsFor(key) {
     return [...new Set([...(this._form[key] || []), ...splitTags(this._form[`${key}Draft`])])];
+  }
+
+  // ------------------------------------------------------- category picker
+  // A text field with a list of existing categories that is filtered while typing.
+  // A category that doesn't exist yet is simply created when the item is saved.
+
+  _renderCategoryInput(key, { placeholder, enter = "", autofocus = false }) {
+    return `<div class="combo">
+        <input data-input="${key}" data-catkey="${key}" ${enter ? `data-enter="${enter}"` : ""} ${autofocus ? "data-autofocus" : ""}
+          autocomplete="off" placeholder="${esc(placeholder)}" value="${esc(this._form[key] || "")}">
+        <div class="combo-list" data-catlist="${key}" hidden></div>
+      </div>`;
+  }
+
+  _categoryOptions(key) {
+    const typed = (this._form[key] || "").trim();
+    const query = typed.toLowerCase();
+    const cats = this._categories().filter((c) => c.toLowerCase().includes(query));
+    // Categories starting with the typed text first; otherwise alphabetical.
+    cats.sort((a, b) => b.toLowerCase().startsWith(query) - a.toLowerCase().startsWith(query));
+    const option = (value, label, cls = "") =>
+      `<div class="combo-opt ${cls}" data-action="cat-pick" data-key="${key}" data-value="${esc(value)}">${esc(label)}</div>`;
+    let html = cats.map((c) => option(c, c)).join("");
+    if (typed && !cats.some((c) => sameText(c, typed))) html += option(typed, this._t("newCategory", { category: typed }), "new");
+    return html;
+  }
+
+  _openCombo(key) {
+    const box = this.shadowRoot.querySelector(`[data-catlist="${key}"]`);
+    if (!box) return;
+    box.innerHTML = this._categoryOptions(key);
+    box.hidden = !box.innerHTML;
+  }
+
+  _closeCombo(key) {
+    const box = this.shadowRoot.querySelector(`[data-catlist="${key}"]`);
+    if (box) box.hidden = true;
+  }
+
+  // Arrow keys, Enter and Escape in an open category list. Returns true if handled.
+  _comboKey(ev) {
+    const key = ev.target.dataset.catkey;
+    const box = this.shadowRoot.querySelector(`[data-catlist="${key}"]`);
+    if (!box || box.hidden) return false;
+    const options = [...box.querySelectorAll(".combo-opt")];
+    const current = options.findIndex((o) => o.classList.contains("hl"));
+    if (ev.key === "ArrowDown" || ev.key === "ArrowUp") {
+      ev.preventDefault();
+      const next = (current + (ev.key === "ArrowDown" ? 1 : options.length - 1 + (current < 0 ? 1 : 0))) % options.length;
+      options.forEach((o, i) => o.classList.toggle("hl", i === next));
+      options[next]?.scrollIntoView?.({ block: "nearest" });
+      return true;
+    }
+    if (ev.key === "Enter" && current >= 0) {
+      ev.preventDefault();
+      this._pickCategory(key, options[current].dataset.value);
+      return true;
+    }
+    if (ev.key === "Escape") {
+      this._closeCombo(key);
+      return true;
+    }
+    return false;
+  }
+
+  _pickCategory(key, value) {
+    this._form[key] = value;
+    const input = this.shadowRoot.querySelector(`[data-catkey="${key}"]`);
+    if (input) input.value = value;
+    this._closeCombo(key);
   }
 
   // ---------------------------------------------------------------- dialogs
@@ -636,6 +824,7 @@ class PackingListCard extends HTMLElement {
       body =
         this._renderHeader() +
         (this._showNew ? this._renderNew() : "") +
+        (this._showEditList && this._list ? this._renderEditList(this._list) : "") +
         this._renderTabs() +
         this._renderTab();
     }
@@ -653,14 +842,17 @@ class PackingListCard extends HTMLElement {
   _renderHeader() {
     const lists = this._data.lists;
     const list = this._list;
+    const option = (l) =>
+      `<option value="${esc(l.list_id)}" ${l.list_id === this._listId ? "selected" : ""}>` +
+      `${esc(l.name)}${l.trip_date ? ` (${esc(l.trip_date)})` : ""}</option>`;
+    const active = lists.filter((l) => !l.archived);
+    const archived = lists.filter((l) => l.archived);
     const select = lists.length
-      ? `<select data-change="select-list">${lists
-          .map(
-            (l) =>
-              `<option value="${esc(l.list_id)}" ${l.list_id === this._listId ? "selected" : ""}>` +
-              `${esc(l.name)}${l.trip_date ? ` (${esc(l.trip_date)})` : ""}</option>`,
-          )
-          .join("")}</select>`
+      ? `<select data-change="select-list">${active.map(option).join("")}${
+          archived.length
+            ? `<optgroup label="${esc(this._t("archivedHeading"))}">${archived.map(option).join("")}</optgroup>`
+            : ""
+        }</select>`
       : `<span class="muted" style="flex:1">${esc(this._t("noLists"))}</span>`;
 
     let progress = "";
@@ -668,13 +860,45 @@ class PackingListCard extends HTMLElement {
       const total = list.items.length;
       const packed = list.items.filter((i) => i.packed).length;
       const pct = total ? Math.round((packed * 100) / total) : 0;
+      const weight = list.use_weight
+        ? ` · ${this._t("weightProgress", {
+            packed: this._fmtWeight(list.items.filter((i) => i.packed).reduce((sum, i) => sum + itemWeight(i), 0)),
+            total: this._fmtWeight(list.items.reduce((sum, i) => sum + itemWeight(i), 0)),
+          })}`
+        : "";
       progress = `<div class="progress"><div class="bar"><div style="width:${pct}%"></div></div>
-        <span>${esc(this._t("progress", { packed, total }))}</span></div>`;
+        <span>${esc(this._t("progress", { packed, total }) + weight)}</span></div>`;
     }
+    const icon = (action, iconName, title, cls = "") =>
+      `<button class="icon ${cls}" data-action="${action}" title="${esc(this._t(title))}"><ha-icon icon="${iconName}"></ha-icon></button>`;
+    const listButtons = list
+      ? icon("toggle-edit-list", "mdi:pencil-outline", "editListTitle", this._showEditList ? "active" : "") +
+        (list.archived
+          ? icon("unarchive-list", "mdi:archive-arrow-up-outline", "unarchive")
+          : icon("archive-list", "mdi:archive-arrow-down-outline", "archive")) +
+        icon("delete-list", "mdi:delete-outline", "deleteList")
+      : "";
+    const archivedNotice = list?.archived
+      ? `<div class="panel archived row tools"><span>${esc(this._t("archivedNotice"))}</span>
+          <button data-action="unarchive-list"><ha-icon icon="mdi:archive-arrow-up-outline"></ha-icon> ${esc(this._t("unarchive"))}</button></div>`
+      : "";
     return `<div class="row header">${select}
         <button data-action="toggle-new" class="${this._showNew ? "active" : ""}">${esc(this._t("newList"))}</button>
-        ${list ? `<button class="icon" data-action="delete-list" title="${esc(this._t("deleteList"))}"><ha-icon icon="mdi:delete-outline"></ha-icon></button>` : ""}
-      </div>${this._renderDialog("header")}${progress}`;
+        ${listButtons}
+      </div>${this._renderDialog("header")}${archivedNotice}${progress}`;
+  }
+
+  _renderEditList(list) {
+    const f = this._form;
+    return `<div class="panel">
+      <div class="label">${esc(this._t("editListTitle"))} – ${esc(list.name)}</div>
+      <input type="date" data-input="lDate" value="${esc(f.lDate || "")}">
+      <textarea data-input="lNotes" data-enter="save-list" rows="3" placeholder="${esc(this._t("notesPlaceholder"))}">${esc(f.lNotes || "")}</textarea>
+      <label class="check"><input type="checkbox" data-change="lWeight" ${f.lWeight ? "checked" : ""}>
+        ${esc(this._t("useWeight"))}</label>
+      <div class="row"><button class="primary" data-action="save-list">${esc(this._t("save"))}</button>
+        <button data-action="toggle-edit-list">${esc(this._t("cancel"))}</button></div>
+    </div>`;
   }
 
   _renderNew() {
@@ -693,6 +917,8 @@ class PackingListCard extends HTMLElement {
       <div class="chips">${chips || `<span class="muted small">${esc(this._t("noMasterTags"))}</span>`}</div>
       <label class="check"><input type="checkbox" data-change="newAlways" ${f.newAlways !== false ? "checked" : ""}>
         ${esc(this._t("includeAlways", { tag: this._alwaysTag }))}</label>
+      <label class="check"><input type="checkbox" data-change="newWeight" ${f.newWeight ? "checked" : ""}>
+        ${esc(this._t("useWeight"))}</label>
       <div class="row"><button class="primary" data-action="create-list">${esc(this._t("create"))}</button>
         <button data-action="toggle-new">${esc(this._t("cancel"))}</button></div>
     </div>`;
@@ -719,29 +945,44 @@ class PackingListCard extends HTMLElement {
     return this._tab === "pick" ? this._renderPick(list) : this._renderPack(list);
   }
 
-  _categoryDatalist() {
-    return `<datalist id="pl-categories">${this._categories().map((c) => `<option value="${esc(c)}"></option>`).join("")}</datalist>`;
-  }
-
   // ---------------------------------------------------------------- pack tab
 
-  // A list item that isn't on the master list (neither linked nor by name).
+  // A list item that isn't on the master list (neither linked nor by name in the same category).
   _notInMaster(item) {
-    return !item.master_uid && !this._data.master.some((m) => sameText(m.summary, item.summary));
+    return (
+      !item.master_uid &&
+      !this._data.master.some((m) => sameText(m.summary, item.summary) && sameText(m.category, item.category))
+    );
   }
 
-  _packRow(item) {
+  _packRow(item, list) {
     const notes = item.notes ? `<span class="notes">${esc(item.notes)}</span>` : "";
+    const name = `<span class="name">${this._qty(item)}${esc(item.summary)}${notes}</span>`;
+    const weight = list.use_weight ? this._weightLabel(item) : "";
     if (this._deleteMode) {
       const on = this._selected.has(item.uid);
       return `<div class="item ${on ? "selected" : ""}" data-action="toggle-select" data-uid="${esc(item.uid)}">
-          ${this._checkbox(on)}<span class="name">${esc(item.summary)}${notes}</span>
+          ${this._checkbox(on)}${name}${weight}
+        </div>`;
+    }
+    if (item.uid === this._editItemUid) {
+      const f = this._form;
+      const linked = list.use_weight && item.master_uid && this._data.master.some((m) => m.uid === item.master_uid);
+      return `<div class="item editing">
+          <div class="label">${esc(item.summary)} – ${esc(this._t("editItemTitle"))}</div>
+          <div class="fields">
+            <input data-input="iQty" data-enter="save-edit-item" data-autofocus inputmode="numeric" placeholder="${esc(this._t("quantityOptional"))}" value="${esc(f.iQty || "")}">
+            ${list.use_weight ? `<input data-input="iWeight" data-enter="save-edit-item" inputmode="decimal" placeholder="${esc(this._t("weightPerPiece"))}" value="${esc(f.iWeight || "")}">` : ""}
+          </div>
+          ${linked ? `<label class="check"><input type="checkbox" data-change="iToMaster" ${f.iToMaster !== false ? "checked" : ""}> ${esc(this._t("saveWeightToMaster"))}</label>` : ""}
+          <div class="row"><button class="primary" data-action="save-edit-item">${esc(this._t("save"))}</button>
+            <button data-action="cancel-edit-item">${esc(this._t("cancel"))}</button></div>
         </div>`;
     }
     if (item.uid === this._toMasterUid) {
       return `<div class="item editing">
           <div class="label">${esc(this._t("saveToMasterHeading", { name: item.summary }))}</div>
-          <input data-input="cCat" data-enter="save-to-master" list="pl-categories" data-autofocus placeholder="${esc(this._t("categoryExample"))}" value="${esc(this._form.cCat)}">
+          ${this._renderCategoryInput("cCat", { placeholder: this._t("categoryExample"), enter: "save-to-master", autofocus: true })}
           ${this._renderTagPicker("cTags", "save-to-master")}
           <div class="row"><button class="primary" data-action="save-to-master">${esc(this._t("saveToMaster"))}</button>
             <button data-action="cancel-to-master">${esc(this._t("cancel"))}</button></div>
@@ -752,15 +993,21 @@ class PackingListCard extends HTMLElement {
           <ha-icon icon="mdi:playlist-plus"></ha-icon></button>`
       : "";
     return `<div class="item ${item.packed ? "done" : ""}" data-action="toggle-packed" data-uid="${esc(item.uid)}">
-        ${this._checkbox(item.packed)}<span class="name">${esc(item.summary)}${notes}</span>${toMaster}
+        ${this._checkbox(item.packed)}${name}${weight}${toMaster}
+        <button class="icon" data-action="edit-item" data-uid="${esc(item.uid)}" title="${esc(this._t("editItemTitle"))}">
+          <ha-icon icon="mdi:pencil-outline"></ha-icon></button>
       </div>`;
   }
 
-  _renderAddExtra() {
+  _renderAddExtra(list) {
     const f = this._form;
     const details = this._showExtraDetails
       ? `<div class="panel">
-          <input data-input="xCat" list="pl-categories" placeholder="${esc(this._t("categoryExample"))}" value="${esc(f.xCat || "")}">
+          ${this._renderCategoryInput("xCat", { placeholder: this._t("categoryExample") })}
+          <div class="fields">
+            <input data-input="xQty" inputmode="numeric" placeholder="${esc(this._t("quantityOptional"))}" value="${esc(f.xQty || "")}">
+            ${list.use_weight ? `<input data-input="xWeight" inputmode="decimal" placeholder="${esc(this._t("weightPerPiece"))}" value="${esc(f.xWeight || "")}">` : ""}
+          </div>
           ${this._renderTagPicker("xTags", "add-extra")}
           <label class="check"><input type="checkbox" data-change="xToMaster" ${f.xToMaster !== false ? "checked" : ""}>
             ${esc(this._t("alsoSaveToMaster"))}</label>
@@ -779,22 +1026,34 @@ class PackingListCard extends HTMLElement {
     const mode = this._deleteMode ? "inline" : this._packedMode;
     const packed = list.items.filter((i) => i.packed);
     const shown = mode === "inline" ? list.items : list.items.filter((i) => !i.packed);
+    // Weight per category counts every item in it, also packed ones shown elsewhere.
+    const catWeight = new Map();
+    for (const item of list.items) {
+      const cat = item.category || UNCATEGORIZED;
+      catWeight.set(cat, (catWeight.get(cat) || 0) + itemWeight(item));
+    }
+    const weightOf = (grams) => (list.use_weight ? `<span class="weight">${esc(this._fmtWeight(grams))}</span>` : "");
     let groups = this._group(shown)
       .map(
         ([cat, catItems]) =>
-          `<div class="cat">${esc(this._categoryLabel(cat))}</div>` + catItems.map((i) => this._packRow(i)).join(""),
+          `<div class="cat"><span>${esc(this._categoryLabel(cat))}</span>${weightOf(catWeight.get(cat))}</div>` +
+          catItems.map((i) => this._packRow(i, list)).join(""),
       )
       .join("");
     if (mode === "bottom" && packed.length) {
       groups +=
-        `<div class="cat packed-head">${esc(this._t("packedHeading", { count: packed.length }))}</div>` +
-        [...packed].sort((a, b) => this._byName(a, b)).map((i) => this._packRow(i)).join("");
+        `<div class="cat packed-head"><span>${esc(this._t("packedHeading", { count: packed.length }))}</span>` +
+        `${weightOf(packed.reduce((sum, i) => sum + itemWeight(i), 0))}</div>` +
+        [...packed].sort((a, b) => this._byName(a, b)).map((i) => this._packRow(i, list)).join("");
     }
     const empty = this._t(list.items.length ? "allPacked" : "listEmpty");
-    return `${this._categoryDatalist()}
+    const notes = list.notes && !this._showEditList
+      ? `<div class="panel notesbox" data-action="toggle-edit-list" title="${esc(this._t("editListTitle"))}">${esc(list.notes)}</div>`
+      : "";
+    return `${notes}
       ${this._deleteMode ? this._renderDeleteBar(list) : this._renderPackTools(list)}
       ${groups || `<div class="empty">${esc(empty)}</div>`}
-      ${this._deleteMode ? "" : this._renderAddExtra()}`;
+      ${this._deleteMode ? "" : this._renderAddExtra(list)}`;
   }
 
   // What "Fetch again" fetches, e.g. "#ski, #always, Clothes" – empty if the list has no criteria.
@@ -846,11 +1105,11 @@ class PackingListCard extends HTMLElement {
 
   // ---------------------------------------------------------------- pick tab
 
-  // The list item that corresponds to a master item (by master uid, else by name).
+  // The list item that corresponds to a master item (by master uid, else by name and category).
   _listItemFor(list, master) {
     return (
       list.items.find((i) => i.master_uid === master.uid) ||
-      list.items.find((i) => sameText(i.summary, master.summary)) ||
+      list.items.find((i) => sameText(i.summary, master.summary) && sameText(i.category, master.category)) ||
       null
     );
   }
@@ -892,15 +1151,21 @@ class PackingListCard extends HTMLElement {
       const f = this._form;
       return `<div class="item editing">
           <input data-input="eName" data-enter="save-edit" ${this._focusEditName ? "data-autofocus" : ""} placeholder="${esc(this._t("name"))}" value="${esc(f.eName)}">
-          <input data-input="eCat" data-enter="save-edit" list="pl-categories" placeholder="${esc(this._t("categoryOptional"))}" value="${esc(f.eCat)}">
+          ${this._renderCategoryInput("eCat", { placeholder: this._t("categoryOptional"), enter: "save-edit" })}
+          <div class="fields">
+            <input data-input="eQty" data-enter="save-edit" inputmode="numeric" placeholder="${esc(this._t("quantityOptional"))}" value="${esc(f.eQty || "")}">
+            ${this._weightInUse ? `<input data-input="eWeight" data-enter="save-edit" inputmode="decimal" placeholder="${esc(this._t("weightPerPiece"))}" value="${esc(f.eWeight || "")}">` : ""}
+          </div>
           ${this._renderTagPicker("eTags", "save-edit")}
+          ${this._editError ? `<div class="error">${esc(this._editError)}</div>` : ""}
           <div class="row"><button class="primary" data-action="save-edit">${esc(this._t("save"))}</button>
             <button data-action="cancel-edit">${esc(this._t("cancel"))}</button></div>
         </div>`;
     }
     return `<div class="item">
-        <span class="name">${esc(m.summary)}${m.notes ? `<span class="notes">${esc(m.notes)}</span>` : ""}</span>
+        <span class="name">${this._qty(m)}${esc(m.summary)}${m.notes ? `<span class="notes">${esc(m.notes)}</span>` : ""}</span>
         <span class="tags">${m.tags.map((t) => `#${esc(t)}`).join(" ")}</span>
+        ${m.weight ? `<span class="weight">${esc(this._fmtWeight(m.weight))}</span>` : ""}
         <button class="icon" data-action="edit-master" data-uid="${esc(m.uid)}" title="${esc(this._t("editTitle"))}">
           <ha-icon icon="mdi:pencil-outline"></ha-icon></button>
         <button class="icon" data-action="delete-master" data-uid="${esc(m.uid)}" title="${esc(this._t("deleteFromMaster"))}">
@@ -916,12 +1181,11 @@ class PackingListCard extends HTMLElement {
           `<div class="cat">${esc(this._categoryLabel(cat))}</div>` + catItems.map((m) => this._renderMasterRow(m)).join(""),
       )
       .join("");
-    return `${this._categoryDatalist()}
-      <div class="panel">
+    return `<div class="panel">
         <div class="label">${esc(this._t("masterAddHint"))}</div>
         <textarea data-input="mNames" data-enter="add-master" rows="4"
           placeholder="${esc(this._t("masterNamesExample")).replace(/\n/g, "&#10;")}">${esc(f.mNames || "")}</textarea>
-        <input data-input="mCat" list="pl-categories" placeholder="${esc(this._t("masterCategoryExample"))}" value="${esc(f.mCat || "")}">
+        ${this._renderCategoryInput("mCat", { placeholder: this._t("masterCategoryExample") })}
         ${this._renderTagPicker("mTags", "add-master")}
         <div class="muted small" style="padding:0">${esc(this._t("alwaysHint", { tag: this._alwaysTag }))}</div>
         <div class="row"><button class="primary" data-action="add-master">${esc(this._t("addToMaster"))}</button>
@@ -942,6 +1206,8 @@ class PackingListCard extends HTMLElement {
       this._listId = ev.target.value;
       this._exitDeleteMode();
       this._toMasterUid = null;
+      this._editItemUid = null;
+      this._showEditList = false;
       this._packNotice = null;
       this._render();
     } else if (key === "packedMode") {
@@ -954,6 +1220,12 @@ class PackingListCard extends HTMLElement {
       this._render();
     } else if (key === "newAlways") {
       this._form.newAlways = ev.target.checked;
+    } else if (key === "newWeight") {
+      this._form.newWeight = ev.target.checked;
+    } else if (key === "lWeight") {
+      this._form.lWeight = ev.target.checked;
+    } else if (key === "iToMaster") {
+      this._form.iToMaster = ev.target.checked;
     } else if (key === "xToMaster") {
       this._form.xToMaster = ev.target.checked;
     }
@@ -979,25 +1251,31 @@ class PackingListCard extends HTMLElement {
     if (!names.length) return;
     const category = (f.mCat || "").trim();
 
-    // Existing items with another category: ask whether to move them. New tags are always added.
+    // The same name may exist once per category. If it only exists in other categories, ask whether
+    // to move it, create a separate item in this category, or keep it (it then just gets the new tags).
     const move = [];
+    const duplicate = [];
     if (category) {
       for (const name of names) {
-        const existing = this._data.master.find((m) => sameText(m.summary, name));
-        if (existing && !sameText(existing.category, category)) {
-          const from = existing.category ? this._t("inCategory", { category: existing.category }) : this._t("noCategory");
-          const answer = await this._ask(
-            "add-master",
-            this._t("moveQuestion", { name: existing.summary, from, category }),
-            { yes: this._t("moveYes", { category }), no: this._t("moveNo") },
-          );
-          if (this._tab !== "master") return; // user left the tab: drop the whole add
-          if (answer) move.push(existing.summary);
-        }
+        const same = this._data.master.filter((m) => sameText(m.summary, name));
+        if (!same.length || same.some((m) => sameText(m.category, category))) continue;
+        const from = same
+          .map((m) => (m.category ? this._t("inCategory", { category: m.category }) : this._t("noCategory")))
+          .join(this._t("andWord"));
+        const buttons = [
+          ...(same.length === 1 ? [{ label: this._t("moveYes", { category }), value: "move" }] : []),
+          { label: this._t("createNew", { category }), value: "new", style: "primary" },
+          { label: this._t("moveNo"), value: "keep" },
+        ];
+        const question = same.length === 1 ? "duplicateQuestion" : "duplicateMany";
+        const answer = await this._choose("add-master", this._t(question, { name: same[0].summary, from, category }), buttons);
+        if (this._tab !== "master") return; // user left the tab: drop the whole add
+        if (answer === "move") move.push(name);
+        else if (answer === "new") duplicate.push(name);
       }
     }
 
-    const data = { items: names, tags: this._tagsFor("mTags"), move };
+    const data = { items: names, tags: this._tagsFor("mTags"), move, duplicate };
     if (category) data.category = category;
     const res = await this._callWithResponse("add_master_items", data);
     const parts = [
@@ -1022,6 +1300,7 @@ class PackingListCard extends HTMLElement {
           this._notice = null;
           this._packNotice = null;
           this._editUid = null;
+          this._editItemUid = null;
           this._toMasterUid = null;
           if (this._dialog) this._closeDialog(-1); // last button = cancel
           this._exitDeleteMode();
@@ -1046,7 +1325,12 @@ class PackingListCard extends HTMLElement {
         case "create-list": {
           const name = (f.newName || "").trim();
           if (!name) return;
-          const data = { name, tags: f.newTags || [], include_always: f.newAlways !== false };
+          const data = {
+            name,
+            tags: f.newTags || [],
+            include_always: f.newAlways !== false,
+            use_weight: !!f.newWeight,
+          };
           if (f.newDate) data.trip_date = f.newDate;
           const res = await this._callWithResponse("create_list", data);
           this._listId = res.list_id ?? this._listId;
@@ -1068,6 +1352,34 @@ class PackingListCard extends HTMLElement {
           await this._call("packing_list", "delete_list", { entity_id: list.entity_id });
           this._listId = null;
           break;
+        case "archive-list":
+        case "unarchive-list":
+          if (!list) return;
+          this._showEditList = false;
+          await this._call("packing_list", "update_list", {
+            entity_id: list.entity_id,
+            archived: action === "archive-list",
+          });
+          break;
+        case "toggle-edit-list":
+          this._showEditList = !this._showEditList;
+          if (this._showEditList && list) {
+            Object.assign(f, { lDate: list.trip_date || "", lNotes: list.notes || "", lWeight: !!list.use_weight });
+          }
+          this._render();
+          break;
+        case "save-list": {
+          if (!list) return;
+          this._showEditList = false;
+          this._render();
+          await this._call("packing_list", "update_list", {
+            entity_id: list.entity_id,
+            trip_date: f.lDate || null,
+            notes: f.lNotes || "",
+            use_weight: !!f.lWeight,
+          });
+          break;
+        }
 
         // Pack tab
         case "toggle-packed": {
@@ -1099,11 +1411,13 @@ class PackingListCard extends HTMLElement {
             Object.assign(data, {
               category: (f.xCat || "").trim() || null,
               tags: this._tagsFor("xTags"),
+              quantity: parseQuantity(f.xQty),
+              weight: list.use_weight ? parseWeight(f.xWeight) : null,
               add_to_master: f.xToMaster !== false,
             });
           }
-          // Keep category/tags for the next item; clear the name.
-          Object.assign(f, { extraItem: "", xTags: data.tags || f.xTags, xTagsDraft: "" });
+          // Keep category/tags for the next item; clear the name, quantity and weight.
+          Object.assign(f, { extraItem: "", xTags: data.tags || f.xTags, xTagsDraft: "", xQty: "", xWeight: "" });
           this._render();
           await this._call("packing_list", "add_list_item", data);
           break;
@@ -1116,8 +1430,32 @@ class PackingListCard extends HTMLElement {
           const item = list.items.find((i) => i.uid === el.dataset.uid);
           if (!item) return;
           this._toMasterUid = item.uid;
+          this._editItemUid = null;
           Object.assign(f, { cCat: item.category || "", cTags: [...item.tags], cTagsDraft: "" });
           this._render();
+          break;
+        }
+        case "edit-item": {
+          const item = list.items.find((i) => i.uid === el.dataset.uid);
+          if (!item) return;
+          this._editItemUid = item.uid;
+          this._toMasterUid = null;
+          Object.assign(f, { iQty: item.quantity || "", iWeight: this._weightValue(item.weight), iToMaster: true });
+          this._render();
+          break;
+        }
+        case "cancel-edit-item":
+          this._editItemUid = null;
+          this._render();
+          break;
+        case "save-edit-item": {
+          const uid = this._editItemUid;
+          if (!uid) return;
+          this._editItemUid = null;
+          this._render();
+          const data = { entity_id: list.entity_id, item: uid, quantity: parseQuantity(f.iQty) };
+          if (list.use_weight) Object.assign(data, { weight: parseWeight(f.iWeight), update_master: f.iToMaster !== false });
+          await this._call("packing_list", "update_list_item", data);
           break;
         }
         case "cancel-to-master":
@@ -1241,7 +1579,15 @@ class PackingListCard extends HTMLElement {
           const m = this._data.master.find((i) => i.uid === el.dataset.uid);
           if (!m) return;
           this._editUid = m.uid;
-          Object.assign(f, { eName: m.summary, eCat: m.category || "", eTags: [...m.tags], eTagsDraft: "" });
+          this._editError = null;
+          Object.assign(f, {
+            eName: m.summary,
+            eCat: m.category || "",
+            eTags: [...m.tags],
+            eTagsDraft: "",
+            eQty: m.quantity || "",
+            eWeight: this._weightValue(m.weight),
+          });
           this._focusEditName = true;
           this._render();
           this._focusEditName = false;
@@ -1254,16 +1600,25 @@ class PackingListCard extends HTMLElement {
         case "save-edit": {
           const uid = this._editUid;
           if (!uid) return;
+          const name = (f.eName || "").trim() || this._data.master.find((m) => m.uid === uid)?.summary;
+          const category = (f.eCat || "").trim();
+          if (this._data.master.some((m) => m.uid !== uid && sameText(m.summary, name) && sameText(m.category, category))) {
+            const where = category ? this._t("inCategory", { category }) : this._t("noCategory");
+            this._editError = this._t("duplicateName", { name, category: where });
+            this._render();
+            return;
+          }
           this._editUid = null;
+          this._editError = null;
           this._render();
-          await this._call("packing_list", "update_master_item", {
-            item: uid,
-            name: (f.eName || "").trim() || undefined,
-            category: (f.eCat || "").trim(),
-            tags: this._tagsFor("eTags"),
-          });
+          const data = { item: uid, name, category, tags: this._tagsFor("eTags"), quantity: parseQuantity(f.eQty) };
+          if (this._weightInUse) data.weight = parseWeight(f.eWeight);
+          await this._call("packing_list", "update_master_item", data);
           break;
         }
+        case "cat-pick":
+          this._pickCategory(el.dataset.key, el.dataset.value);
+          break;
         case "tag-pick": {
           const key = el.dataset.key;
           f[key] = [...new Set([...(f[key] || []), el.dataset.tag])];

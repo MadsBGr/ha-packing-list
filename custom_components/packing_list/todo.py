@@ -151,11 +151,16 @@ class TripTodoEntity(_PackingTodoEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        """Add trip date and progress."""
+        """Add trip date, progress, notes and weight."""
         attrs = super().extra_state_attributes
         items = self._manager.items_for(self._key)
         plist = self._manager.lists.get(self._key)
         attrs["trip_date"] = plist.trip_date if plist else None
         attrs["total"] = len(items)
         attrs["packed"] = sum(item.packed for item in items)
+        attrs["archived"] = plist.archived if plist else False
+        attrs["notes"] = plist.notes if plist else ""
+        if plist and plist.use_weight:
+            attrs["total_weight"] = plist.total_weight
+            attrs["packed_weight"] = plist.packed_weight
         return attrs

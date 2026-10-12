@@ -99,8 +99,8 @@ async def test_copy_to_master(hass: HomeAssistant, setup_entry, hass_ws_client) 
     await hass.services.async_call("todo", "add_item", {"item": "bamse"}, target={"entity_id": entity_id}, blocking=True)
 
     await _call(hass, "copy_to_master", {"entity_id": entity_id, "item": "Fiskestang", "category": "Sport", "tags": ["sommer"]})
-    # Existing master name: gets the new tag, keeps its category, no duplicate.
-    await _call(hass, "copy_to_master", {"entity_id": entity_id, "item": "bamse", "category": "Legetøj", "tags": ["bil"]})
+    # Existing master name in the same category: gets the new tag, no duplicate.
+    await _call(hass, "copy_to_master", {"entity_id": entity_id, "item": "bamse", "category": "Børn", "tags": ["bil"]})
 
     master = [i for i in await _items(hass, MASTER) if i["summary"].lower() in ("fiskestang", "bamse")]
     by_name = {i["summary"]: i for i in master}
@@ -115,3 +115,11 @@ async def test_copy_to_master(hass: HomeAssistant, setup_entry, hass_ws_client) 
     assert items["Fiskestang"]["description"] == "@Sport #sommer den lange"
     assert items["bamse"]["master_uid"] == by_name["Bamse"]["uid"]
     assert items["bamse"]["category"] == "Børn"
+
+
+async def test_copy_to_master_other_category_is_separate(hass: HomeAssistant, setup_entry) -> None:
+    entity_id = (await _create(hass, name="Tur", include_always=False))["entity_id"]
+    await hass.services.async_call("todo", "add_item", {"item": "Bamse"}, target={"entity_id": entity_id}, blocking=True)
+    await _call(hass, "copy_to_master", {"entity_id": entity_id, "item": "Bamse", "category": "Legetøj"})
+    bamser = sorted(i["description"] for i in await _items(hass, MASTER) if i["summary"] == "Bamse")
+    assert bamser == ["@Børn #børn", "@Legetøj"]

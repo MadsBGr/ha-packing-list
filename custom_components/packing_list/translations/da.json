@@ -41,6 +41,14 @@
         "include_always": {
           "name": "Medtag #altid",
           "description": "Hent også alle punkter med tagget #altid."
+        },
+        "use_weight": {
+          "name": "Brug vægt",
+          "description": "Vis vægt pr. punkt og summer pr. kategori på listen."
+        },
+        "notes": {
+          "name": "Noter",
+          "description": "Valgfri noter til pakkelisten."
         }
       }
     },
@@ -76,7 +84,7 @@
     },
     "add_master_items": {
       "name": "Tilføj til master",
-      "description": "Tilføjer et eller flere punkter til master-listen med samme kategori og tags. Findes et navn allerede, får det de nye tags, og det flyttes til kategorien, hvis navnet står i 'Flyt'.",
+      "description": "Tilføjer et eller flere punkter til master-listen med samme kategori og tags. Samme navn kan findes én gang pr. kategori. Findes navnet i en anden kategori, får det eksisterende punkt de nye tags, medmindre navnet står i 'Flyt' eller 'Opret som ny'.",
       "fields": {
         "items": {
           "name": "Punkter",
@@ -93,6 +101,10 @@
         "move": {
           "name": "Flyt",
           "description": "Eksisterende punkter, der skal flyttes til kategorien."
+        },
+        "duplicate": {
+          "name": "Opret som ny",
+          "description": "Punkter, der findes i en anden kategori, men skal oprettes som et nyt punkt i kategorien."
         }
       }
     },
@@ -118,7 +130,7 @@
     },
     "update_master_item": {
       "name": "Ret master-punkt",
-      "description": "Retter navn, kategori og/eller tags på et punkt i master-listen. Kategori og tags opdateres også på pakkelisterne.",
+      "description": "Retter navn, kategori, tags, antal og/eller vægt på et punkt i master-listen. Kategori, tags og vægt opdateres også på pakkelisterne.",
       "fields": {
         "item": {
           "name": "Punkt",
@@ -135,6 +147,14 @@
         "tags": {
           "name": "Tags",
           "description": "Nye tags (erstatter de gamle). Tom liste fjerner alle tags, udeladt beholder dem."
+        },
+        "quantity": {
+          "name": "Antal",
+          "description": "Standardantal, når punktet hentes til en pakkeliste. 0 fjerner det, udeladt beholder det."
+        },
+        "weight": {
+          "name": "Vægt pr. stk.",
+          "description": "Vægt i gram pr. stk. Opdateres også på pakkelisterne. 0 fjerner den, udeladt beholder den."
         }
       }
     },
@@ -179,12 +199,20 @@
         "add_to_master": {
           "name": "Gem også i master",
           "description": "Gem også punktet i master-listen."
+        },
+        "quantity": {
+          "name": "Antal",
+          "description": "Valgfrit antal."
+        },
+        "weight": {
+          "name": "Vægt pr. stk.",
+          "description": "Valgfri vægt i gram pr. stk."
         }
       }
     },
     "copy_to_master": {
       "name": "Gem i master",
-      "description": "Gemmer et punkt fra en pakkeliste i master-listen og kobler dem sammen. Findes navnet allerede, får det eksisterende punkt de nye tags.",
+      "description": "Gemmer et punkt fra en pakkeliste i master-listen og kobler dem sammen. Findes navnet allerede i samme kategori, får det eksisterende punkt de nye tags.",
       "fields": {
         "entity_id": {
           "name": "Pakkeliste",
@@ -201,6 +229,58 @@
         "tags": {
           "name": "Tags",
           "description": "Tags i masteren (udeladt = punktets egne)."
+        }
+      }
+    },
+    "update_list": {
+      "name": "Ret pakkeliste",
+      "description": "Retter dato, noter, brug af vægt eller arkivering på en pakkeliste. Udeladte felter beholdes.",
+      "fields": {
+        "entity_id": {
+          "name": "Pakkeliste",
+          "description": "Pakkelisten."
+        },
+        "trip_date": {
+          "name": "Afrejsedato",
+          "description": "Ny dato. Tom fjerner datoen."
+        },
+        "notes": {
+          "name": "Noter",
+          "description": "Noter til pakkelisten (erstatter de gamle)."
+        },
+        "use_weight": {
+          "name": "Brug vægt",
+          "description": "Vis vægt pr. punkt og summer pr. kategori."
+        },
+        "archived": {
+          "name": "Arkiveret",
+          "description": "Arkivér listen (eller hent den tilbage fra arkivet)."
+        }
+      }
+    },
+    "update_list_item": {
+      "name": "Ret punkt på pakkeliste",
+      "description": "Retter antal og/eller vægt på et punkt på en pakkeliste.",
+      "fields": {
+        "entity_id": {
+          "name": "Pakkeliste",
+          "description": "Pakkelisten."
+        },
+        "item": {
+          "name": "Punkt",
+          "description": "Punktets navn eller uid på pakkelisten."
+        },
+        "quantity": {
+          "name": "Antal",
+          "description": "Nyt antal. 0 fjerner det, udeladt beholder det."
+        },
+        "weight": {
+          "name": "Vægt pr. stk.",
+          "description": "Ny vægt i gram pr. stk. 0 fjerner den, udeladt beholder den."
+        },
+        "update_master": {
+          "name": "Gem vægten i master",
+          "description": "Gem også vægten på master-punktet og dermed på alle lister, der har det."
         }
       }
     }
@@ -220,6 +300,12 @@
     },
     "list_item_not_found": {
       "message": "{item} findes ikke på pakkelisten."
+    },
+    "ambiguous_item": {
+      "message": "{item} findes i flere kategorier på master-listen. Angiv punktets uid i stedet."
+    },
+    "duplicate_item": {
+      "message": "Der findes allerede et punkt med navnet {item} i den kategori."
     }
   }
 }

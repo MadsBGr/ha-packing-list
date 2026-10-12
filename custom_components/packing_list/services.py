@@ -21,7 +21,7 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import DOMAIN, SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX
-from .manager import PackingListManager
+from .manager import KEEP, AmbiguousItemError, DuplicateItemError, PackingListManager
 
 ATTR_TRIP_DATE = "trip_date"
 ATTR_TAGS = "tags"
@@ -32,6 +32,13 @@ ATTR_ITEMS = "items"
 ATTR_MOVE = "move"
 ATTR_INCLUDE_ALWAYS = "include_always"
 ATTR_INCLUDE_EXCLUDED = "include_excluded"
+ATTR_DUPLICATE = "duplicate"
+ATTR_QUANTITY = "quantity"
+ATTR_WEIGHT = "weight"
+ATTR_NOTES = "notes"
+ATTR_USE_WEIGHT = "use_weight"
+ATTR_ARCHIVED = "archived"
+ATTR_UPDATE_MASTER = "update_master"
 
 SERVICE_CREATE_LIST = "create_list"
 SERVICE_ADD_FROM_MASTER = "add_from_master"
@@ -43,6 +50,8 @@ SERVICE_RESET_MASTER = "reset_master"
 SERVICE_REFRESH_LIST = "refresh_list"
 SERVICE_ADD_LIST_ITEM = "add_list_item"
 SERVICE_COPY_TO_MASTER = "copy_to_master"
+SERVICE_UPDATE_LIST = "update_list"
+SERVICE_UPDATE_LIST_ITEM = "update_list_item"
 
 ATTR_TO_MASTER = "add_to_master"
 
@@ -64,6 +73,10 @@ def _split_list(separator: str):
 _string_list = _split_list(",")
 _line_list = _split_list("\n")
 
+# Quantity and weight (grams per piece); null or 0 clears the value.
+_quantity = vol.Any(None, vol.All(vol.Coerce(int), vol.Range(min=0)))
+_weight = vol.Any(None, vol.All(vol.Coerce(float), vol.Range(min=0)))
+
 
 _SELECTION_SCHEMA = {
     vol.Optional(ATTR_TAGS, default=list): _string_list,
@@ -76,6 +89,8 @@ CREATE_LIST_SCHEMA = vol.Schema(
         vol.Required(ATTR_NAME): cv.string,
         vol.Optional(ATTR_TRIP_DATE): cv.date,
         vol.Optional(ATTR_INCLUDE_ALWAYS, default=True): cv.boolean,
+        vol.Optional(ATTR_USE_WEIGHT, default=False): cv.boolean,
+        vol.Optional(ATTR_NOTES, default=""): cv.string,
         **_SELECTION_SCHEMA,
     }
 )
@@ -104,6 +119,7 @@ ADD_MASTER_ITEMS_SCHEMA = vol.Schema(
         vol.Optional(ATTR_CATEGORY): cv.string,
         vol.Optional(ATTR_TAGS, default=list): _string_list,
         vol.Optional(ATTR_MOVE, default=list): _line_list,
+        vol.Optional(ATTR_DUPLICATE, default=list): _line_list,
     }
 )
 
@@ -114,6 +130,8 @@ UPDATE_MASTER_ITEM_SCHEMA = vol.Schema(
         vol.Optional(ATTR_NAME): cv.string,
         vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
         vol.Optional(ATTR_TAGS): _string_list,
+        vol.Optional(ATTR_QUANTITY): _quantity,
+        vol.Optional(ATTR_WEIGHT): _weight,
     }
 )
 
@@ -124,7 +142,31 @@ ADD_LIST_ITEM_SCHEMA = vol.Schema(
         vol.Required(ATTR_ITEM): cv.string,
         vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
         vol.Optional(ATTR_TAGS, default=list): _string_list,
+        vol.Optional(ATTR_QUANTITY): _quantity,
+        vol.Optional(ATTR_WEIGHT): _weight,
         vol.Optional(ATTR_TO_MASTER, default=False): cv.boolean,
+    }
+)
+
+# Leaving out a field keeps it; a null trip date clears it.
+UPDATE_LIST_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Optional(ATTR_TRIP_DATE): vol.Any(None, cv.date),
+        vol.Optional(ATTR_NOTES): cv.string,
+        vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
+        vol.Optional(ATTR_ARCHIVED): cv.boolean,
+    }
+)
+
+# Leaving out quantity/weight keeps them; null or 0 clears them.
+UPDATE_LIST_ITEM_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_ITEM): cv.string,
+        vol.Optional(ATTR_QUANTITY): _quantity,
+        vol.Optional(ATTR_WEIGHT): _weight,
+        vol.Optional(ATTR_UPDATE_MASTER, default=False): cv.boolean,
     }
 )
 
@@ -178,6 +220,23 @@ def _resolve_list_id(hass: HomeAssistant, manager: PackingListManager, entity_id
     return list_id
 
 
+def _find_list_item(manager: PackingListManager, list_id: str, ref: str):
+    """A trip list item by uid or (case-insensitive) name."""
+    items = manager.lists[list_id].items
+    item = next(
+        (i for i in items if i.uid == ref or i.summary.casefold() == ref.strip().casefold()),
+        None,
+    )
+    if item is None:
+        raise _error("list_item_not_found", item=ref)
+    return item
+
+
+def _optional(data: dict[str, Any], key: str) -> Any:
+    """The value if the field was given (None included), else KEEP."""
+    return data[key] if key in data else KEEP
+
+
 def _selection(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "items": data[ATTR_ITEMS],
@@ -195,7 +254,10 @@ def async_register_services(hass: HomeAssistant) -> None:
         manager = get_manager(hass)
         trip_date = call.data.get(ATTR_TRIP_DATE)
         plist = manager.create_list(
-            call.data[ATTR_NAME], trip_date.isoformat() if trip_date else None
+            call.data[ATTR_NAME],
+            trip_date.isoformat() if trip_date else None,
+            use_weight=call.data[ATTR_USE_WEIGHT],
+            notes=call.data[ATTR_NOTES],
         )
         added = manager.add_from_master(plist.list_id, **_selection(call.data))
         async_dispatcher_send(hass, SIGNAL_LIST_ADDED, plist.list_id)
@@ -239,23 +301,31 @@ def async_register_services(hass: HomeAssistant) -> None:
             call.data.get(ATTR_CATEGORY),
             call.data[ATTR_TAGS],
             call.data[ATTR_MOVE],
+            call.data[ATTR_DUPLICATE],
         )
 
     async def update_master_item(call: ServiceCall) -> None:
         manager = get_manager(hass)
         try:
             item = manager.find_master(call.data[ATTR_ITEM])
+        except AmbiguousItemError:
+            raise _error("ambiguous_item", item=call.data[ATTR_ITEM]) from None
         except KeyError:
             raise _error("master_item_not_found", item=call.data[ATTR_ITEM]) from None
         category = call.data.get(ATTR_CATEGORY)
         if ATTR_CATEGORY in call.data and category is None:
             category = ""  # explicit null clears the category
-        manager.update_master_item(
-            item.uid,
-            summary=call.data.get(ATTR_NAME),
-            category=category,
-            tags=call.data.get(ATTR_TAGS),
-        )
+        try:
+            manager.update_master_item(
+                item.uid,
+                summary=call.data.get(ATTR_NAME),
+                category=category,
+                tags=call.data.get(ATTR_TAGS),
+                quantity=_optional(call.data, ATTR_QUANTITY),
+                weight=_optional(call.data, ATTR_WEIGHT),
+            )
+        except DuplicateItemError as err:
+            raise _error("duplicate_item", item=str(err)) from None
 
     hass.services.async_register(
         DOMAIN,
@@ -311,21 +381,40 @@ def async_register_services(hass: HomeAssistant) -> None:
             call.data[ATTR_ITEM],
             category=call.data.get(ATTR_CATEGORY),
             tags=call.data[ATTR_TAGS],
+            quantity=call.data.get(ATTR_QUANTITY),
+            weight=call.data.get(ATTR_WEIGHT),
             to_master=call.data[ATTR_TO_MASTER],
         )
         return {"uid": item.uid, "master_uid": item.master_uid}
 
+    async def update_list(call: ServiceCall) -> None:
+        manager = get_manager(hass)
+        list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
+        trip_date = _optional(call.data, ATTR_TRIP_DATE)
+        manager.update_list(
+            list_id,
+            trip_date=trip_date.isoformat() if trip_date not in (KEEP, None) else trip_date,
+            notes=call.data.get(ATTR_NOTES),
+            use_weight=call.data.get(ATTR_USE_WEIGHT),
+            archived=call.data.get(ATTR_ARCHIVED),
+        )
+
+    async def update_list_item(call: ServiceCall) -> None:
+        manager = get_manager(hass)
+        list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
+        item = _find_list_item(manager, list_id, call.data[ATTR_ITEM])
+        manager.update_list_item(
+            list_id,
+            item.uid,
+            quantity=_optional(call.data, ATTR_QUANTITY),
+            weight=_optional(call.data, ATTR_WEIGHT),
+            to_master=call.data[ATTR_UPDATE_MASTER],
+        )
+
     async def copy_to_master(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
         list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
-        ref = call.data[ATTR_ITEM]
-        items = manager.lists[list_id].items
-        item = next(
-            (i for i in items if i.uid == ref or i.summary.casefold() == ref.strip().casefold()),
-            None,
-        )
-        if item is None:
-            raise _error("list_item_not_found", item=ref)
+        item = _find_list_item(manager, list_id, call.data[ATTR_ITEM])
         master_item = manager.copy_to_master(
             list_id,
             item.uid,
@@ -354,4 +443,10 @@ def async_register_services(hass: HomeAssistant) -> None:
         copy_to_master,
         schema=COPY_TO_MASTER_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_UPDATE_LIST, update_list, schema=UPDATE_LIST_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_UPDATE_LIST_ITEM, update_list_item, schema=UPDATE_LIST_ITEM_SCHEMA
     )

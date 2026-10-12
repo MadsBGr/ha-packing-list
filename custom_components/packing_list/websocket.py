@@ -51,6 +51,9 @@ def ws_get_data(
                     "categories": plist.categories,
                     "include_always": plist.include_always,
                     "excluded": plist.excluded,
+                    "notes": plist.notes,
+                    "use_weight": plist.use_weight,
+                    "archived": plist.archived,
                 }
                 for plist in manager.lists.values()
             ],
