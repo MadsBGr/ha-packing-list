@@ -1,7 +1,7 @@
 """Constants for the Packing List integration."""
 
 DOMAIN = "packing_list"
-VERSION = "0.10.0"
+VERSION = "0.11.0"
 
 STORAGE_KEY = f"{DOMAIN}.storage"
 STORAGE_VERSION = 1
@@ -16,6 +16,8 @@ MASTER_KEY = "master"
 ALWAYS_TAGS = ("altid", "always")
 
 SIGNAL_LIST_ADDED = f"{DOMAIN}_list_added"
+SIGNAL_MASTER_REMOVED = f"{DOMAIN}_master_removed"
+DEFAULTS_NOTIFICATION_ID = f"{DOMAIN}_new_defaults"
 
 UNIQUE_ID_MASTER = f"{DOMAIN}_master"
 UNIQUE_ID_LIST_PREFIX = f"{DOMAIN}_list_"
@@ -24,8 +26,30 @@ CARD_URL = f"/{DOMAIN}/packing-list-card.js"
 
 # Names chosen from the Home Assistant language; anything but Danish is English.
 NAMES = {
-    "da": {"title": "Pakkelister", "master": "Pakkeliste master", "progress": "{name} pakket"},
-    "en": {"title": "Packing lists", "master": "Packing list master", "progress": "{name} packed"},
+    "da": {
+        "title": "Pakkelister",
+        "master": "Pakkeliste master",
+        "progress": "{name} pakket",
+        "copy": "{name} (kopi)",
+        "defaults_title": "Pakkelister: nye standardpunkter",
+        "defaults_message": (
+            "Standardlisten har fået {count} nye punkter: {names}.\n\n"
+            "Åbn fanen **Master** i pakkeliste-kortet for at tilføje dem til din master-liste "
+            "eller springe dem over. Din egen master-liste er ikke ændret."
+        ),
+    },
+    "en": {
+        "title": "Packing lists",
+        "master": "Packing list master",
+        "progress": "{name} packed",
+        "copy": "{name} (copy)",
+        "defaults_title": "Packing lists: new default items",
+        "defaults_message": (
+            "The default list has {count} new items: {names}.\n\n"
+            "Open the **Master** tab in the packing list card to add them to your master list "
+            "or skip them. Your own master list has not been changed."
+        ),
+    },
 }
 
 

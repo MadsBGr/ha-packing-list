@@ -97,12 +97,21 @@ def _new_uid() -> str:
     return uuid.uuid4().hex
 
 
+def _seed(lang: str) -> list[tuple[str, str]]:
+    """The default master list (name, description) in the given language."""
+    return SEED_ITEMS_DA if lang == "da" else SEED_ITEMS_EN
+
+
 def _seed_items(lang: str) -> list[PackingItem]:
     """The default master list in the given language (Danish or English)."""
     return [
         PackingItem(uid=_new_uid(), summary=summary, description=desc)
-        for summary, desc in (SEED_ITEMS_DA if lang == "da" else SEED_ITEMS_EN)
+        for summary, desc in _seed(lang)
     ]
+
+
+def _seed_names(lang: str) -> list[str]:
+    return [summary.casefold() for summary, _ in _seed(lang)]
 
 
 @dataclass
@@ -155,7 +164,6 @@ class PackingList:
 
     list_id: str
     name: str
-    trip_date: str | None = None
     items: list[PackingItem] = field(default_factory=list)
     # The tags/categories the list was filled with, used by "fetch again".
     tags: list[str] = field(default_factory=list)
@@ -187,6 +195,10 @@ class PackingListManager:
         self._seed_master = seed_master
         self.master: list[PackingItem] = []
         self.lists: dict[str, PackingList] = {}
+        # Names (casefolded) of default master items already offered to the user, and the
+        # language of that default list. New defaults in later releases are those not seen.
+        self.defaults_seen: list[str] = []
+        self.defaults_language: str | None = None
         self.revision = 0
         self._listeners: dict[str, list[Callable[[], None]]] = {}
 
@@ -203,6 +215,9 @@ class PackingListManager:
         """
         data = await self.store.async_load()
         if data is None:
+            # Today's defaults count as seen even if the user chose to start empty.
+            self.defaults_language = self.language
+            self.defaults_seen = _seed_names(self.language)
             if self._seed_master:
                 self.master = _seed_items(self.language)
             self._schedule_save()
@@ -212,11 +227,30 @@ class PackingListManager:
             items = [_from_dict(PackingItem, i) for i in raw.get("items", [])]
             plist = _from_dict(PackingList, {**raw, "items": items})
             self.lists[plist.list_id] = plist
+        if "defaults_seen" in data:
+            self.defaults_seen = data["defaults_seen"]
+            self.defaults_language = data.get("defaults_language") or self.language
+        else:
+            # Stored before default tracking existed: treat today's defaults as already
+            # seen (in the language the master list was made in), so nothing is offered
+            # until a later release adds new default items.
+            self.defaults_language = self._guess_master_language()
+            self.defaults_seen = _seed_names(self.defaults_language)
+            self._schedule_save()
+
+    def _guess_master_language(self) -> str:
+        names = {item.summary.casefold() for item in self.master}
+        overlap = {lang: len(names & set(_seed_names(lang))) for lang in ("da", "en")}
+        if overlap["da"] == overlap["en"]:
+            return self.language
+        return max(overlap, key=overlap.get)
 
     def _data_to_save(self) -> dict[str, Any]:
         return {
             "master": [asdict(item) for item in self.master],
             "lists": [asdict(plist) for plist in self.lists.values()],
+            "defaults_seen": self.defaults_seen,
+            "defaults_language": self.defaults_language,
         }
 
     def _schedule_save(self) -> None:
@@ -436,6 +470,8 @@ class PackingListManager:
         """
         old_keys = {item.uid: item.key for item in self.master}
         self.master = _seed_items(self.language)
+        self.defaults_language = self.language
+        self.defaults_seen = _seed_names(self.language)
         by_key = {item.key: item.uid for item in self.master}
         by_name: dict[str, str] = {}
         for item in self.master:
@@ -454,6 +490,45 @@ class PackingListManager:
                 if uid in old_keys and (new_uid := relink(old_keys[uid]))
             ]
             self._changed(plist.list_id)
+        self._changed(MASTER_KEY)
+
+    # ------------------------------------------------- new default items
+
+    def pending_defaults(self) -> list[tuple[str, str]]:
+        """Default master items added in a later release that the user hasn't seen yet.
+
+        Items whose name is already on the master list (in any category) are left out.
+        """
+        seen = set(self.defaults_seen)
+        on_master = {item.summary.casefold() for item in self.master}
+        return [
+            (summary, desc)
+            for summary, desc in _seed(self.defaults_language or self.language)
+            if summary.casefold() not in seen and summary.casefold() not in on_master
+        ]
+
+    @callback
+    def add_new_defaults(self, names: Iterable[str] | None = None) -> int:
+        """Add new default items to the master list (all, or those named).
+
+        Existing master items are never changed. Returns the number added.
+        """
+        wanted = None if names is None else {n.strip().casefold() for n in names}
+        added = 0
+        for summary, desc in self.pending_defaults():
+            if wanted is None or summary.casefold() in wanted:
+                self.master.append(PackingItem(uid=_new_uid(), summary=summary, description=desc))
+                added += 1
+        self.skip_new_defaults(names)
+        return added
+
+    @callback
+    def skip_new_defaults(self, names: Iterable[str] | None = None) -> None:
+        """Mark new default items as seen without adding them (all, or those named)."""
+        wanted = None if names is None else {n.strip().casefold() for n in names}
+        all_defaults = _seed_names(self.defaults_language or self.language)
+        new = [n for n in all_defaults if wanted is None or n in wanted]
+        self.defaults_seen = list(dict.fromkeys([*self.defaults_seen, *new]))
         self._changed(MASTER_KEY)
 
     @callback
@@ -500,7 +575,6 @@ class PackingListManager:
     def create_list(
         self,
         name: str,
-        trip_date: str | None = None,
         *,
         use_weight: bool = False,
         notes: str = "",
@@ -509,9 +583,34 @@ class PackingListManager:
         plist = PackingList(
             list_id=_new_uid(),
             name=name.strip(),
-            trip_date=trip_date,
             use_weight=use_weight,
             notes=notes.strip(),
+        )
+        self.lists[plist.list_id] = plist
+        self._changed(plist.list_id)
+        return plist
+
+    @callback
+    def copy_list(self, list_id: str, name: str) -> PackingList:
+        """Copy a trip list (active or archived) under a new name.
+
+        The copy has the same items (nothing packed), notes, weight setting and
+        remembered tags/categories/deleted items, and is not archived.
+        """
+        source = self.lists[list_id]
+        plist = PackingList(
+            list_id=_new_uid(),
+            name=name.strip(),
+            items=[
+                PackingItem(**{**asdict(item), "uid": _new_uid(), "packed": False})
+                for item in source.items
+            ],
+            tags=list(source.tags),
+            categories=list(source.categories),
+            include_always=source.include_always,
+            excluded=list(source.excluded),
+            notes=source.notes,
+            use_weight=source.use_weight,
         )
         self.lists[plist.list_id] = plist
         self._changed(plist.list_id)
@@ -522,18 +621,18 @@ class PackingListManager:
         self,
         list_id: str,
         *,
-        trip_date: str | None = KEEP,
+        name: str | None = None,
         notes: str | None = None,
         use_weight: bool | None = None,
         archived: bool | None = None,
     ) -> None:
-        """Change a trip list's date, notes, weight setting or archived state.
+        """Rename a trip list or change its notes, weight setting or archived state.
 
-        ``None`` keeps a value; for ``trip_date`` ``None`` clears it.
+        ``None`` keeps a value.
         """
         plist = self.lists[list_id]
-        if trip_date is not KEEP:
-            plist.trip_date = trip_date
+        if name is not None and name.strip():
+            plist.name = name.strip()
         if notes is not None:
             plist.notes = notes.strip()
         if use_weight is not None:
@@ -571,9 +670,9 @@ class PackingListManager:
 
     @callback
     def delete_list(self, list_id: str) -> None:
-        """Delete a trip list."""
-        self.lists.pop(list_id)
-        self._changed(list_id)
+        """Delete a trip list (no-op if it is already gone)."""
+        if self.lists.pop(list_id, None) is not None:
+            self._changed(list_id)
 
     @callback
     def reset_list(self, list_id: str) -> None:

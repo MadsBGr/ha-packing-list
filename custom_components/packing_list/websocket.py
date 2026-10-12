@@ -12,6 +12,7 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
 from .const import DOMAIN, UNIQUE_ID_MASTER
+from .manager import PackingItem
 from .services import get_manager, list_entity_id
 
 
@@ -40,11 +41,15 @@ def ws_get_data(
                 "todo", DOMAIN, UNIQUE_ID_MASTER
             ),
             "master": [item.as_dict() for item in manager.master],
+            # Default items added in a newer release that the user hasn't added or skipped yet.
+            "new_defaults": [
+                PackingItem(uid="", summary=summary, description=desc).as_dict()
+                for summary, desc in manager.pending_defaults()
+            ],
             "lists": [
                 {
                     "list_id": plist.list_id,
                     "name": plist.name,
-                    "trip_date": plist.trip_date,
                     "entity_id": list_entity_id(hass, plist.list_id),
                     "items": [item.as_dict() for item in plist.items],
                     "tags": plist.tags,

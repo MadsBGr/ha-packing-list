@@ -3,12 +3,12 @@
   "name": "Pakkelister",
   "codeowners": ["@MadsBGr"],
   "config_flow": true,
-  "dependencies": ["frontend", "http", "lovelace", "websocket_api"],
+  "dependencies": ["frontend", "http", "lovelace", "persistent_notification", "websocket_api"],
   "documentation": "https://github.com/MadsBGr/ha-packing-list",
   "integration_type": "service",
   "iot_class": "local_push",
   "issue_tracker": "https://github.com/MadsBGr/ha-packing-list/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.10.0"
+  "version": "0.11.0"
 }

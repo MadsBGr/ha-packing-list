@@ -58,8 +58,9 @@ async def test_create_list_from_tags(hass: HomeAssistant, setup_entry) -> None:
     assert "Badetøj" not in summaries
     assert result["added"] == len(summaries)
 
+    # trip_date is no longer used, but old scripts sending it still work.
     state = hass.states.get(entity_id)
-    assert state.attributes["trip_date"] == "2027-02-06"
+    assert "trip_date" not in state.attributes
     assert state.attributes["version"] == VERSION
     assert hass.states.get("sensor.skiferie_pakket").state == "0"
 

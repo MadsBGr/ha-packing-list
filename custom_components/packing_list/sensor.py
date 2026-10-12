@@ -43,7 +43,12 @@ class PackingProgressSensor(SensorEntity):
         self._manager = manager
         self._list_id = list_id
         self._attr_unique_id = f"{UNIQUE_ID_LIST_PREFIX}{list_id}_progress"
-        self._attr_name = NAMES[manager.language]["progress"].format(name=manager.lists[list_id].name)
+
+    @property
+    def name(self) -> str | None:
+        """'<list name> packed'; follows renames."""
+        plist = self._manager.lists.get(self._list_id)
+        return NAMES[self._manager.language]["progress"].format(name=plist.name) if plist else None
 
     async def async_added_to_hass(self) -> None:
         """Follow changes of the trip list."""

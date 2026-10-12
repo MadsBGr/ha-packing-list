@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.10.0";
+const CARD_VERSION = "0.11.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODE_KEY = "packing-list-card.packed-mode";
 const PACKED_MODES = ["inline", "bottom", "hide"];
@@ -126,13 +126,24 @@ const STRINGS = {
     saveWeightToMaster: "Also save the weight in the master list",
     editItemTitle: "Quantity and weight",
     editList: "Edit list",
-    editListTitle: "Date, notes and weight",
+    editListTitle: "Name, notes and weight",
     notes: "Notes",
     notesPlaceholder: "Notes for this list, e.g. what to buy before the trip",
     archive: "Archive list",
     unarchive: "Restore from archive",
     archivedHeading: "Archived",
     archivedNotice: "This list is archived.",
+    listName: "List name",
+    copyList: "Copy list",
+    copyHeading: 'Copy "{name}"',
+    copyNameDefault: "{name} (copy)",
+    copyHint: "The copy gets the same items and notes – nothing is packed.",
+    copy: "Copy",
+    newDefaultsOne: "The default list has a new item: {names}.",
+    newDefaultsMany: "The default list has {count} new items: {names}.",
+    newDefaultsNote: "Add them to your master list or skip them – your own items are not changed.",
+    addDefaults: "Add to my master",
+    skipDefaults: "Skip",
     duplicateName: 'There is already an item named "{name}" in {category}.',
     duplicateQuestion: '"{name}" already exists in {from}.\nMove it to "{category}", or create it as a separate item in "{category}"?',
     duplicateMany: '"{name}" already exists in {from}.\nCreate it as a separate item in "{category}" too?',
@@ -245,13 +256,24 @@ const STRINGS = {
     saveWeightToMaster: "Gem også vægten i master-listen",
     editItemTitle: "Antal og vægt",
     editList: "Ret liste",
-    editListTitle: "Dato, noter og vægt",
+    editListTitle: "Navn, noter og vægt",
     notes: "Noter",
     notesPlaceholder: "Noter til listen, f.eks. hvad der skal købes inden turen",
     archive: "Arkivér liste",
     unarchive: "Hent tilbage fra arkivet",
     archivedHeading: "Arkiverede",
     archivedNotice: "Listen er arkiveret.",
+    listName: "Listens navn",
+    copyList: "Kopiér liste",
+    copyHeading: 'Kopiér "{name}"',
+    copyNameDefault: "{name} (kopi)",
+    copyHint: "Kopien får de samme punkter og noter – intet er pakket.",
+    copy: "Kopiér",
+    newDefaultsOne: "Standardlisten har fået et nyt punkt: {names}.",
+    newDefaultsMany: "Standardlisten har fået {count} nye punkter: {names}.",
+    newDefaultsNote: "Tilføj dem til din master-liste eller spring dem over – dine egne punkter ændres ikke.",
+    addDefaults: "Tilføj til min master",
+    skipDefaults: "Spring over",
     duplicateName: 'Der findes allerede et punkt med navnet "{name}" i {category}.',
     duplicateQuestion: '"{name}" findes allerede i {from}.\nSkal den flyttes til "{category}", eller oprettes som et separat punkt i "{category}"?',
     duplicateMany: '"{name}" findes allerede i {from}.\nSkal den også oprettes som et separat punkt i "{category}"?',
@@ -825,6 +847,7 @@ class PackingListCard extends HTMLElement {
         this._renderHeader() +
         (this._showNew ? this._renderNew() : "") +
         (this._showEditList && this._list ? this._renderEditList(this._list) : "") +
+        (this._showCopyList && this._list ? this._renderCopyList(this._list) : "") +
         this._renderTabs() +
         this._renderTab();
     }
@@ -843,8 +866,7 @@ class PackingListCard extends HTMLElement {
     const lists = this._data.lists;
     const list = this._list;
     const option = (l) =>
-      `<option value="${esc(l.list_id)}" ${l.list_id === this._listId ? "selected" : ""}>` +
-      `${esc(l.name)}${l.trip_date ? ` (${esc(l.trip_date)})` : ""}</option>`;
+      `<option value="${esc(l.list_id)}" ${l.list_id === this._listId ? "selected" : ""}>${esc(l.name)}</option>`;
     const active = lists.filter((l) => !l.archived);
     const archived = lists.filter((l) => l.archived);
     const select = lists.length
@@ -873,6 +895,7 @@ class PackingListCard extends HTMLElement {
       `<button class="icon ${cls}" data-action="${action}" title="${esc(this._t(title))}"><ha-icon icon="${iconName}"></ha-icon></button>`;
     const listButtons = list
       ? icon("toggle-edit-list", "mdi:pencil-outline", "editListTitle", this._showEditList ? "active" : "") +
+        icon("toggle-copy-list", "mdi:content-copy", "copyList", this._showCopyList ? "active" : "") +
         (list.archived
           ? icon("unarchive-list", "mdi:archive-arrow-up-outline", "unarchive")
           : icon("archive-list", "mdi:archive-arrow-down-outline", "archive")) +
@@ -891,13 +914,38 @@ class PackingListCard extends HTMLElement {
   _renderEditList(list) {
     const f = this._form;
     return `<div class="panel">
-      <div class="label">${esc(this._t("editListTitle"))} – ${esc(list.name)}</div>
-      <input type="date" data-input="lDate" value="${esc(f.lDate || "")}">
+      <div class="label">${esc(this._t("editListTitle"))}</div>
+      <input data-input="lName" data-enter="save-list" ${this._focusPanel === "edit" ? "data-autofocus" : ""} placeholder="${esc(this._t("listName"))}" value="${esc(f.lName || "")}">
       <textarea data-input="lNotes" data-enter="save-list" rows="3" placeholder="${esc(this._t("notesPlaceholder"))}">${esc(f.lNotes || "")}</textarea>
       <label class="check"><input type="checkbox" data-change="lWeight" ${f.lWeight ? "checked" : ""}>
         ${esc(this._t("useWeight"))}</label>
       <div class="row"><button class="primary" data-action="save-list">${esc(this._t("save"))}</button>
         <button data-action="toggle-edit-list">${esc(this._t("cancel"))}</button></div>
+    </div>`;
+  }
+
+  _renderCopyList(list) {
+    const f = this._form;
+    return `<div class="panel">
+      <div class="label">${esc(this._t("copyHeading", { name: list.name }))}</div>
+      <input data-input="cpName" data-enter="copy-list" ${this._focusPanel === "copy" ? "data-autofocus" : ""}
+        placeholder="${esc(this._t("listName"))}" value="${esc(f.cpName || "")}">
+      <div class="muted small" style="padding:0">${esc(this._t("copyHint"))}</div>
+      <div class="row"><button class="primary" data-action="copy-list">${esc(this._t("copy"))}</button>
+        <button data-action="toggle-copy-list">${esc(this._t("cancel"))}</button></div>
+    </div>`;
+  }
+
+  // Shown on the master tab when a newer release added items to the default list.
+  _renderNewDefaults() {
+    const items = this._data.new_defaults || [];
+    if (!items.length) return "";
+    const names = items.map((i) => i.summary).join(", ");
+    const text = this._t(items.length === 1 ? "newDefaultsOne" : "newDefaultsMany", { count: items.length, names });
+    return `<div class="panel dialog">
+      <div class="msg">${esc(text)}\n${esc(this._t("newDefaultsNote"))}</div>
+      <div class="row"><button class="primary" data-action="add-defaults">${esc(this._t("addDefaults"))}</button>
+        <button data-action="skip-defaults">${esc(this._t("skipDefaults"))}</button></div>
     </div>`;
   }
 
@@ -912,7 +960,7 @@ class PackingListCard extends HTMLElement {
       .join("");
     return `<div class="panel">
       <input data-input="newName" data-enter="create-list" placeholder="${esc(this._t("newListName"))}" value="${esc(f.newName || "")}">
-      <input type="date" data-input="newDate" value="${esc(f.newDate || "")}">
+      <textarea data-input="newNotes" rows="2" placeholder="${esc(this._t("notesPlaceholder"))}">${esc(f.newNotes || "")}</textarea>
       <div class="label">${esc(this._t("addWithTags"))}</div>
       <div class="chips">${chips || `<span class="muted small">${esc(this._t("noMasterTags"))}</span>`}</div>
       <label class="check"><input type="checkbox" data-change="newAlways" ${f.newAlways !== false ? "checked" : ""}>
@@ -1181,7 +1229,7 @@ class PackingListCard extends HTMLElement {
           `<div class="cat">${esc(this._categoryLabel(cat))}</div>` + catItems.map((m) => this._renderMasterRow(m)).join(""),
       )
       .join("");
-    return `<div class="panel">
+    return `${this._renderNewDefaults()}<div class="panel">
         <div class="label">${esc(this._t("masterAddHint"))}</div>
         <textarea data-input="mNames" data-enter="add-master" rows="4"
           placeholder="${esc(this._t("masterNamesExample")).replace(/\n/g, "&#10;")}">${esc(f.mNames || "")}</textarea>
@@ -1208,6 +1256,7 @@ class PackingListCard extends HTMLElement {
       this._toMasterUid = null;
       this._editItemUid = null;
       this._showEditList = false;
+      this._showCopyList = false;
       this._packNotice = null;
       this._render();
     } else if (key === "packedMode") {
@@ -1327,11 +1376,11 @@ class PackingListCard extends HTMLElement {
           if (!name) return;
           const data = {
             name,
+            notes: (f.newNotes || "").trim(),
             tags: f.newTags || [],
             include_always: f.newAlways !== false,
             use_weight: !!f.newWeight,
           };
-          if (f.newDate) data.trip_date = f.newDate;
           const res = await this._callWithResponse("create_list", data);
           this._listId = res.list_id ?? this._listId;
           this._form = {};
@@ -1363,23 +1412,49 @@ class PackingListCard extends HTMLElement {
           break;
         case "toggle-edit-list":
           this._showEditList = !this._showEditList;
+          this._showCopyList = false;
           if (this._showEditList && list) {
-            Object.assign(f, { lDate: list.trip_date || "", lNotes: list.notes || "", lWeight: !!list.use_weight });
+            Object.assign(f, { lName: list.name, lNotes: list.notes || "", lWeight: !!list.use_weight });
           }
+          this._focusPanel = this._showEditList ? "edit" : null;
           this._render();
+          this._focusPanel = null;
           break;
         case "save-list": {
           if (!list) return;
           this._showEditList = false;
           this._render();
-          await this._call("packing_list", "update_list", {
-            entity_id: list.entity_id,
-            trip_date: f.lDate || null,
-            notes: f.lNotes || "",
-            use_weight: !!f.lWeight,
-          });
+          const data = { entity_id: list.entity_id, notes: f.lNotes || "", use_weight: !!f.lWeight };
+          const name = (f.lName || "").trim();
+          if (name && name !== list.name) data.name = name;
+          await this._call("packing_list", "update_list", data);
           break;
         }
+        case "toggle-copy-list":
+          this._showCopyList = !this._showCopyList;
+          this._showEditList = false;
+          if (this._showCopyList && list) f.cpName = this._t("copyNameDefault", { name: list.name });
+          this._focusPanel = this._showCopyList ? "copy" : null;
+          this._render();
+          this._focusPanel = null;
+          break;
+        case "copy-list": {
+          if (!list) return;
+          const name = (f.cpName || "").trim() || this._t("copyNameDefault", { name: list.name });
+          this._showCopyList = false;
+          this._render();
+          const res = await this._callWithResponse("copy_list", { entity_id: list.entity_id, name });
+          this._listId = res.list_id ?? this._listId;
+          this._tab = "pack";
+          await this._fetch();
+          break;
+        }
+        case "add-defaults":
+          await this._call("packing_list", "add_new_defaults", {});
+          break;
+        case "skip-defaults":
+          await this._call("packing_list", "skip_new_defaults", {});
+          break;
 
         // Pack tab
         case "toggle-packed": {

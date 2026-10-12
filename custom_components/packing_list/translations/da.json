@@ -22,10 +22,6 @@
           "name": "Navn",
           "description": "Navnet på pakkelisten."
         },
-        "trip_date": {
-          "name": "Afrejsedato",
-          "description": "Valgfri dato for turen."
-        },
         "tags": {
           "name": "Tags",
           "description": "Hent alle master-punkter med et af disse tags."
@@ -234,15 +230,15 @@
     },
     "update_list": {
       "name": "Ret pakkeliste",
-      "description": "Retter dato, noter, brug af vægt eller arkivering på en pakkeliste. Udeladte felter beholdes.",
+      "description": "Omdøber en pakkeliste eller ændrer noter, vægt-indstilling eller arkivering.",
       "fields": {
         "entity_id": {
           "name": "Pakkeliste",
           "description": "Pakkelisten."
         },
-        "trip_date": {
-          "name": "Afrejsedato",
-          "description": "Ny dato. Tom fjerner datoen."
+        "name": {
+          "name": "Nyt navn",
+          "description": "Omdøb listen."
         },
         "notes": {
           "name": "Noter",
@@ -281,6 +277,40 @@
         "update_master": {
           "name": "Gem vægten i master",
           "description": "Gem også vægten på master-punktet og dermed på alle lister, der har det."
+        }
+      }
+    },
+    "copy_list": {
+      "name": "Kopiér pakkeliste",
+      "description": "Laver en kopi af en pakkeliste (aktiv eller arkiveret) med de samme punkter – intet er pakket i kopien.",
+      "fields": {
+        "entity_id": {
+          "name": "Pakkeliste",
+          "description": "Pakkelisten."
+        },
+        "name": {
+          "name": "Navn",
+          "description": "Navnet på kopien. Udeladt = \"<navn> (kopi)\"."
+        }
+      }
+    },
+    "add_new_defaults": {
+      "name": "Tilføj nye standardpunkter",
+      "description": "Tilføjer punkter, som en nyere version har lagt i standardlisten, til din master-liste. Dine egne punkter ændres ikke.",
+      "fields": {
+        "items": {
+          "name": "Punkter",
+          "description": "Navnene på de nye standardpunkter. Udeladt = alle."
+        }
+      }
+    },
+    "skip_new_defaults": {
+      "name": "Spring nye standardpunkter over",
+      "description": "Markerer nye standardpunkter som set, uden at tilføje dem.",
+      "fields": {
+        "items": {
+          "name": "Punkter",
+          "description": "Navnene på de nye standardpunkter. Udeladt = alle."
         }
       }
     }

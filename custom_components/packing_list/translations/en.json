@@ -22,10 +22,6 @@
           "name": "Name",
           "description": "Name of the packing list."
         },
-        "trip_date": {
-          "name": "Trip date",
-          "description": "Optional date of the trip."
-        },
         "tags": {
           "name": "Tags",
           "description": "Add all master items with any of these tags."
@@ -234,15 +230,15 @@
     },
     "update_list": {
       "name": "Update packing list",
-      "description": "Changes the date, notes, use of weight or archiving of a packing list. Fields left out are kept.",
+      "description": "Renames a packing list or changes its notes, weight setting or archived state.",
       "fields": {
         "entity_id": {
           "name": "Packing list",
           "description": "The packing list."
         },
-        "trip_date": {
-          "name": "Trip date",
-          "description": "New date. Empty clears the date."
+        "name": {
+          "name": "New name",
+          "description": "Rename the list."
         },
         "notes": {
           "name": "Notes",
@@ -281,6 +277,40 @@
         "update_master": {
           "name": "Save weight to master",
           "description": "Also save the weight on the master item, and so on every list that has it."
+        }
+      }
+    },
+    "copy_list": {
+      "name": "Copy packing list",
+      "description": "Copies a packing list (active or archived) with the same items – nothing is packed in the copy.",
+      "fields": {
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list."
+        },
+        "name": {
+          "name": "Name",
+          "description": "Name of the copy. Omitted = \"<name> (copy)\"."
+        }
+      }
+    },
+    "add_new_defaults": {
+      "name": "Add new default items",
+      "description": "Adds items that a newer version added to the default list to your master list. Your own items are not changed.",
+      "fields": {
+        "items": {
+          "name": "Items",
+          "description": "Names of the new default items. Omitted = all."
+        }
+      }
+    },
+    "skip_new_defaults": {
+      "name": "Skip new default items",
+      "description": "Marks new default items as seen without adding them.",
+      "fields": {
+        "items": {
+          "name": "Items",
+          "description": "Names of the new default items. Omitted = all."
         }
       }
     }

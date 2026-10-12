@@ -7,6 +7,7 @@ from typing import Any
 
 import voluptuous as vol
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntryState
 from homeassistant.const import ATTR_ENTITY_ID, ATTR_NAME
 from homeassistant.core import (
@@ -20,7 +21,13 @@ from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
-from .const import DOMAIN, SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX
+from .const import (
+    DEFAULTS_NOTIFICATION_ID,
+    DOMAIN,
+    NAMES,
+    SIGNAL_LIST_ADDED,
+    UNIQUE_ID_LIST_PREFIX,
+)
 from .manager import KEEP, AmbiguousItemError, DuplicateItemError, PackingListManager
 
 ATTR_TRIP_DATE = "trip_date"
@@ -52,6 +59,9 @@ SERVICE_ADD_LIST_ITEM = "add_list_item"
 SERVICE_COPY_TO_MASTER = "copy_to_master"
 SERVICE_UPDATE_LIST = "update_list"
 SERVICE_UPDATE_LIST_ITEM = "update_list_item"
+SERVICE_COPY_LIST = "copy_list"
+SERVICE_ADD_NEW_DEFAULTS = "add_new_defaults"
+SERVICE_SKIP_NEW_DEFAULTS = "skip_new_defaults"
 
 ATTR_TO_MASTER = "add_to_master"
 
@@ -84,10 +94,13 @@ _SELECTION_SCHEMA = {
     vol.Optional(ATTR_ITEMS, default=list): _string_list,
 }
 
+# Lists no longer have a date; the field is still accepted (and ignored) so old scripts keep working.
+_IGNORED_TRIP_DATE = {vol.Optional(ATTR_TRIP_DATE): vol.Any(None, cv.string, cv.date)}
+
 CREATE_LIST_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_NAME): cv.string,
-        vol.Optional(ATTR_TRIP_DATE): cv.date,
+        **_IGNORED_TRIP_DATE,
         vol.Optional(ATTR_INCLUDE_ALWAYS, default=True): cv.boolean,
         vol.Optional(ATTR_USE_WEIGHT, default=False): cv.boolean,
         vol.Optional(ATTR_NOTES, default=""): cv.string,
@@ -148,11 +161,12 @@ ADD_LIST_ITEM_SCHEMA = vol.Schema(
     }
 )
 
-# Leaving out a field keeps it; a null trip date clears it.
+# Leaving out a field keeps it.
 UPDATE_LIST_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-        vol.Optional(ATTR_TRIP_DATE): vol.Any(None, cv.date),
+        vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(min=1)),
+        **_IGNORED_TRIP_DATE,
         vol.Optional(ATTR_NOTES): cv.string,
         vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
         vol.Optional(ATTR_ARCHIVED): cv.boolean,
@@ -169,6 +183,16 @@ UPDATE_LIST_ITEM_SCHEMA = vol.Schema(
         vol.Optional(ATTR_UPDATE_MASTER, default=False): cv.boolean,
     }
 )
+
+COPY_LIST_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(min=1)),
+    }
+)
+
+# Leaving out items means all new default items.
+NEW_DEFAULTS_SCHEMA = vol.Schema({vol.Optional(ATTR_ITEMS): _line_list})
 
 # Leaving out category/tags uses the list item's own.
 COPY_TO_MASTER_SCHEMA = vol.Schema(
@@ -237,6 +261,35 @@ def _optional(data: dict[str, Any], key: str) -> Any:
     return data[key] if key in data else KEEP
 
 
+async def _async_add_list_entities(hass: HomeAssistant, list_id: str) -> str | None:
+    """Create the entities of a new list and return its to-do entity id."""
+    async_dispatcher_send(hass, SIGNAL_LIST_ADDED, list_id)
+    # Entities are added asynchronously; wait briefly so we can return the id.
+    for _ in range(50):
+        if entity_id := list_entity_id(hass, list_id):
+            return entity_id
+        await asyncio.sleep(0.1)
+    return None
+
+
+@callback
+def async_update_defaults_notification(hass: HomeAssistant, manager: PackingListManager) -> None:
+    """Show a notification while new default master items are waiting, else remove it."""
+    pending = manager.pending_defaults()
+    if not pending:
+        persistent_notification.async_dismiss(hass, DEFAULTS_NOTIFICATION_ID)
+        return
+    texts = NAMES[manager.language]
+    persistent_notification.async_create(
+        hass,
+        texts["defaults_message"].format(
+            count=len(pending), names=", ".join(summary for summary, _ in pending)
+        ),
+        title=texts["defaults_title"],
+        notification_id=DEFAULTS_NOTIFICATION_ID,
+    )
+
+
 def _selection(data: dict[str, Any]) -> dict[str, Any]:
     return {
         "items": data[ATTR_ITEMS],
@@ -252,23 +305,35 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def create_list(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
-        trip_date = call.data.get(ATTR_TRIP_DATE)
         plist = manager.create_list(
             call.data[ATTR_NAME],
-            trip_date.isoformat() if trip_date else None,
             use_weight=call.data[ATTR_USE_WEIGHT],
             notes=call.data[ATTR_NOTES],
         )
         added = manager.add_from_master(plist.list_id, **_selection(call.data))
-        async_dispatcher_send(hass, SIGNAL_LIST_ADDED, plist.list_id)
-
-        # Entities are added asynchronously; wait briefly so we can return the id.
-        entity_id = None
-        for _ in range(50):
-            if entity_id := list_entity_id(hass, plist.list_id):
-                break
-            await asyncio.sleep(0.1)
+        entity_id = await _async_add_list_entities(hass, plist.list_id)
         return {"list_id": plist.list_id, "entity_id": entity_id, "added": added}
+
+    async def copy_list(call: ServiceCall) -> ServiceResponse:
+        manager = get_manager(hass)
+        list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
+        name = call.data.get(ATTR_NAME) or NAMES[manager.language]["copy"].format(
+            name=manager.lists[list_id].name
+        )
+        plist = manager.copy_list(list_id, name)
+        entity_id = await _async_add_list_entities(hass, plist.list_id)
+        return {"list_id": plist.list_id, "entity_id": entity_id, "items": len(plist.items)}
+
+    async def add_new_defaults(call: ServiceCall) -> ServiceResponse:
+        manager = get_manager(hass)
+        added = manager.add_new_defaults(call.data.get(ATTR_ITEMS))
+        async_update_defaults_notification(hass, manager)
+        return {"added": added}
+
+    async def skip_new_defaults(call: ServiceCall) -> None:
+        manager = get_manager(hass)
+        manager.skip_new_defaults(call.data.get(ATTR_ITEMS))
+        async_update_defaults_notification(hass, manager)
 
     async def add_from_master(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
@@ -358,7 +423,9 @@ def async_register_services(hass: HomeAssistant) -> None:
     )
 
     async def reset_master(call: ServiceCall) -> None:
-        get_manager(hass).reset_master()
+        manager = get_manager(hass)
+        manager.reset_master()
+        async_update_defaults_notification(hass, manager)
 
     hass.services.async_register(
         DOMAIN, SERVICE_RESET_MASTER, reset_master, schema=vol.Schema({})
@@ -390,10 +457,9 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def update_list(call: ServiceCall) -> None:
         manager = get_manager(hass)
         list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
-        trip_date = _optional(call.data, ATTR_TRIP_DATE)
         manager.update_list(
             list_id,
-            trip_date=trip_date.isoformat() if trip_date not in (KEEP, None) else trip_date,
+            name=call.data.get(ATTR_NAME),
             notes=call.data.get(ATTR_NOTES),
             use_weight=call.data.get(ATTR_USE_WEIGHT),
             archived=call.data.get(ATTR_ARCHIVED),
@@ -449,4 +515,21 @@ def async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_UPDATE_LIST_ITEM, update_list_item, schema=UPDATE_LIST_ITEM_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_COPY_LIST,
+        copy_list,
+        schema=COPY_LIST_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN,
+        SERVICE_ADD_NEW_DEFAULTS,
+        add_new_defaults,
+        schema=NEW_DEFAULTS_SCHEMA,
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SKIP_NEW_DEFAULTS, skip_new_defaults, schema=NEW_DEFAULTS_SCHEMA
     )

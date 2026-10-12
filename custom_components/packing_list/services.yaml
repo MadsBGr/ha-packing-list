@@ -5,9 +5,6 @@ create_list:
       example: "Skiferie 2027"
       selector:
         text:
-    trip_date:
-      selector:
-        date:
     tags:
       example: "ski, fly"
       selector:
@@ -135,6 +132,35 @@ update_master_item:
 
 reset_master:
 
+copy_list:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
+    name:
+      example: "Skiferie 2028"
+      selector:
+        text:
+
+add_new_defaults:
+  fields:
+    items:
+      example: "Powerbank"
+      selector:
+        text:
+          multiple: true
+
+skip_new_defaults:
+  fields:
+    items:
+      example: "Powerbank"
+      selector:
+        text:
+          multiple: true
+
 refresh_list:
   fields:
     entity_id:
@@ -240,9 +266,10 @@ update_list:
         entity:
           integration: packing_list
           domain: todo
-    trip_date:
+    name:
+      example: "Skiferie 2028"
       selector:
-        date:
+        text:
     notes:
       selector:
         text:
