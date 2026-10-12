@@ -85,7 +85,7 @@ class _PackingTodoEntity(TodoListEntity):
         """Follow changes in the manager."""
         self.async_on_remove(self._manager.async_add_listener(self._key, self._handle_change))
 
-    def _removed_from_registry(self) -> bool:
+    def _deleted_outside_integration(self) -> bool:
         """True if the entity was deleted outside the integration (e.g. in the HA UI).
 
         Looked up by unique id, so a changed entity id or a disabled entity doesn't count,
@@ -169,7 +169,7 @@ class MasterTodoEntity(_PackingTodoEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Recreate the master entity if it was deleted in the HA UI."""
-        if self._removed_from_registry():
+        if self._deleted_outside_integration():
             self.hass.loop.call_soon(async_dispatcher_send, self.hass, SIGNAL_MASTER_REMOVED)
 
 
@@ -190,7 +190,7 @@ class TripTodoEntity(_PackingTodoEntity):
 
     async def async_will_remove_from_hass(self) -> None:
         """Delete the list if its entity was deleted in the HA UI."""
-        if self._key in self._manager.lists and self._removed_from_registry():
+        if self._key in self._manager.lists and self._deleted_outside_integration():
             self.hass.loop.call_soon(_delete_list_and_sensor, self.hass, self._manager, self._key)
 
     @property

@@ -290,7 +290,7 @@
         },
         "name": {
           "name": "Name",
-          "description": "Name of the copy. Omitted = \"<name> (copy)\"."
+          "description": "Name of the copy. Omitted = the list name followed by (copy)."
         }
       }
     },

@@ -290,7 +290,7 @@
         },
         "name": {
           "name": "Navn",
-          "description": "Navnet på kopien. Udeladt = \"<navn> (kopi)\"."
+          "description": "Navnet på kopien. Udeladt = listens navn efterfulgt af (kopi)."
         }
       }
     },
