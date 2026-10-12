@@ -64,4 +64,9 @@ class PackingProgressSensor(SensorEntity):
         """Counts behind the percentage."""
         items = self._manager.items_for(self._list_id)
         packed = sum(item.packed for item in items)
-        return {"packed": packed, "total": len(items), "remaining": len(items) - packed}
+        attrs: dict[str, Any] = {"packed": packed, "total": len(items), "remaining": len(items) - packed}
+        plist = self._manager.lists.get(self._list_id)
+        if plist and plist.use_weight:
+            attrs["total_weight"] = plist.total_weight
+            attrs["packed_weight"] = plist.packed_weight
+        return attrs

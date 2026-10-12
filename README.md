@@ -9,7 +9,7 @@ to-do-liste i Home Assistant. Du kan krydse af undervejs og se, hvad der er pakk
 medfølgende kort, i den indbyggede to-do-visning, i appen og via Assist.
 
 *English summary: A master packing list plus per-trip packing lists built from it by tag, category or
-hand-picked items. Every list is a native `todo` entity, and a bundled Lovelace card handles picking
+hand-picked items, with optional quantities, weights (totals per category), list notes and archiving. Every list is a native `todo` entity, and a bundled Lovelace card handles picking
 and packing. The card, entity names and errors follow your Home Assistant language (Danish or English,
 English otherwise); a suggested master list in that language is created on first install only.*
 
@@ -25,6 +25,14 @@ English otherwise); a suggested master list in that language is created on first
 - **Hent igen** tilføjer nye master-punkter, der matcher listens tags og kategorier. Har du tidligere
   slettet nogle af dem fra listen, bliver du spurgt, om de også skal hentes igen.
 - **Slette-tilstand:** Markér et eller flere punkter på en pakkeliste og slet dem på én gang.
+- **Antal og vægt (valgfrit):** Et punkt kan have et antal (f.eks. 5 × strømper) og en vægt pr. stk.
+  Slår du **Brug vægt** til på en liste, vises vægten pr. punkt, summen pr. kategori og den samlede vægt.
+- **Noter** til hver pakkeliste, f.eks. hvad der skal købes inden turen.
+- **Arkivér** gamle pakkelister. De ligger under "Arkiverede" i listevælgeren og kan hentes tilbage.
+- **Kategorivælger:** Når du skriver en kategori, vises de eksisterende kategorier i en liste, der
+  filtreres, mens du skriver. En ny kategori bliver bare oprettet.
+- **Samme navn i flere kategorier:** Et punkt må gerne findes flere gange, når blot det står i hver sin
+  kategori (f.eks. "Bamse" under både *Børn* og *Legetøj*).
 - **Ret master-punkter:** Navn, kategori og tags kan rettes. Ændringer i kategori og tags slår også igennem
   på pakkelisterne.
 - **Fjern flueben** markerer hele listen som "ikke pakket", så den kan genbruges til hjemrejsen. Kortet
@@ -34,7 +42,8 @@ English otherwise); a suggested master list in that language is created on first
   opretter selv kortets ressource under Dashboards → Ressourcer.
 - **Sprog:** Kortet, navnene og fejlbeskederne følger sproget i Home Assistant. Dansk og engelsk er
   understøttet, og alle andre sprog bliver engelsk.
-- Alt gemmes lokalt i `.storage`. Der er ingen cloud og ingen eksterne afhængigheder.
+- Alt gemmes lokalt i `.storage` (Home Assistants egen lagring, som også tages med i backup).
+  Der er ingen cloud, ingen database og ingen eksterne afhængigheder.
 
 ## Sprog og standardlisten
 
@@ -83,9 +92,9 @@ packed_mode: bottom          # valgfri: inline | bottom | hide
 
 | Fane | Hvad du gør |
 |---|---|
-| **Pak** | Tryk på et punkt for at markere det som pakket. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Med **Slet punkter** går du i slette-tilstand: Markér de punkter, der skal væk (eller **Vælg alle**), og tryk **Slet (n)**. **Hent igen** henter nye matchende punkter fra masteren. **Fjern flueben** markerer alle punkter som ikke pakket, efter du har bekræftet det. Nederst tilføjer du nye punkter; med justér-knappen kan du give dem kategori og tags og gemme dem i masteren. Punkter, der ikke findes i masteren, har ikonet "Gem i master". |
+| **Pak** | Tryk på et punkt for at markere det som pakket. Blyanten ved et punkt retter antal og vægt. Vælg, om pakkede punkter skal stå i deres kategori, flyttes nederst under **Pakket** eller skjules. Under **Pakket** sorteres punkterne alfabetisk. Med **Slet punkter** går du i slette-tilstand: Markér de punkter, der skal væk (eller **Vælg alle**), og tryk **Slet (n)**. **Hent igen** henter nye matchende punkter fra masteren. **Fjern flueben** markerer alle punkter som ikke pakket, efter du har bekræftet det. Nederst tilføjer du nye punkter; med justér-knappen kan du give dem kategori og tags og gemme dem i masteren. Punkter, der ikke findes i masteren, har ikonet "Gem i master". |
 | **Vælg fra master** | Sæt flueben ved det, der skal med. "+ #tag" henter alle punkter med et tag, og "tilføj alle" henter en hel kategori. |
-| **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Blyanten ved et punkt retter navn, kategori og tags. Skraldespanden sletter punktet. Nederst kan du nulstille hele masteren til standardlisten. Kortet beder om bekræftelse, før noget slettes. |
+| **Master** | Tilføj et eller flere punkter ad gangen (ét pr. linje), som alle får samme kategori og tags. Ctrl+Enter tilføjer. Blyanten ved et punkt retter navn, kategori, tags, standardantal og vægt. Skraldespanden sletter punktet. Nederst kan du nulstille hele masteren til standardlisten. Kortet beder om bekræftelse, før noget slettes. |
 
 ### Hent igen
 
@@ -106,14 +115,36 @@ mens du skriver. Et nyt tag tilføjer du med Enter eller komma. Valgte tags fjer
 Valget af visning for pakkede punkter huskes i den enkelte browser. `packed_mode` bestemmer kun, hvad der
 vises første gang.
 
-Med **+ Ny liste** opretter du en tur med navn, dato og de tags, der skal hentes.
+Med **+ Ny liste** opretter du en tur med navn, dato og de tags, der skal hentes, og vælger, om listen
+skal bruge vægt. Blyanten ved siden af listevælgeren retter dato, noter og **Brug vægt**. Noterne vises
+øverst på fanen *Pak*. Arkiv-knappen arkiverer listen, og den samme knap henter den tilbage igen.
+
+### Antal og vægt
+
+- **Antal** er valgfrit og vises foran navnet, f.eks. "5× Strømper". Et antal på et master-punkt er
+  standardantallet, når punktet hentes til en liste. Antallet på en pakkeliste gælder kun den liste.
+- **Vægt** angives i gram pr. stk. (du kan også skrive f.eks. `1,2 kg`). Punktets vægt er vægt × antal.
+- Vægt er slået fra som standard. Med **Brug vægt** på en liste vises vægten ved hvert punkt, summen i
+  hver kategoris overskrift og "pakket af i alt" ved siden af fremdriften. Når en liste bruger vægt, kan
+  du også angive vægt på master-punkterne.
+- Retter du vægten på et punkt på en pakkeliste, kan du samtidig gemme den i masteren. Vægten på et
+  master-punkt slår igennem på alle lister, der har punktet.
+
+### Kategorier
+
+Når du skriver i et kategorifelt, vises alle eksisterende kategorier (fra masteren og pakkelisterne).
+Listen bliver kortere, mens du skriver. Tryk på en kategori, eller brug piletasterne og Enter. Findes
+kategorien ikke, bliver den oprettet, når du gemmer.
 
 ### Punkter, der allerede findes i masteren
 
-Tilføjer du et punkt, der allerede findes (uanset store og små bogstaver), bliver det ikke oprettet igen:
+Det samme navn (uanset store og små bogstaver) kan findes én gang pr. kategori.
 
-- Har du angivet en **anden kategori**, bliver du spurgt, om punktet skal flyttes dertil.
-- Har du angivet **tags**, som punktet ikke har, lægges de til. De eksisterende tags beholdes.
+- Findes punktet allerede i **samme kategori**, bliver det ikke oprettet igen. Nye tags lægges til, og
+  de eksisterende beholdes.
+- Findes det kun i en **anden kategori**, bliver du spurgt, om det skal **flyttes**, **oprettes som et
+  nyt punkt** i den nye kategori, eller om du vil **beholde kategorien** (så får det bare de nye tags).
+- Retter du navn eller kategori, så det ville give to ens punkter i samme kategori, siger kortet fra.
 
 Når du retter kategori eller tags på et master-punkt, opdateres de samme felter også på de pakkelister,
 hvor punktet er hentet fra masteren. Noter, du har skrevet på pakkelisten, bevares. Et nyt navn ændrer
@@ -140,14 +171,16 @@ Når et punkt kopieres til en tur, følger beskrivelsen med, så kategorierne og
 
 | Tjeneste | Beskrivelse |
 |---|---|
-| `packing_list.create_list` | Opret en liste: `name`, valgfrit `trip_date`, `tags`, `categories`, `items` og `include_always` (standard `true`). Returnerer `entity_id`. |
+| `packing_list.create_list` | Opret en liste: `name`, valgfrit `trip_date`, `tags`, `categories`, `items`, `include_always` (standard `true`), `use_weight` og `notes`. Returnerer `entity_id`. |
+| `packing_list.update_list` | Ret en liste: valgfrit `trip_date` (tom fjerner den), `notes`, `use_weight` og `archived`. Udeladte felter beholdes. |
+| `packing_list.update_list_item` | Ret `quantity` og/eller `weight` (gram pr. stk.) på punktet `item` (navn eller uid) på listen `entity_id`. 0 eller tom fjerner værdien. Med `update_master: true` gemmes vægten også i masteren. |
 | `packing_list.add_from_master` | Tilføj fra master til `entity_id` efter `tags`, `categories` eller `items` (navn eller uid). |
-| `packing_list.add_master_items` | Tilføj flere punkter til masteren på én gang: `items` (en liste eller ét pr. linje), valgfrit `category` og `tags`. Punkter, der allerede findes, får de nye tags. De flyttes kun til `category`, hvis deres navn står i `move`. Returnerer antal `added`, `moved`, `tagged` og `skipped`. |
-| `packing_list.update_master_item` | Ret master-punktet `item` (navn eller uid): valgfrit nyt `name`, `category` og `tags` (erstatter de gamle). Udeladte felter beholdes, og tomme felter rydder dem. |
+| `packing_list.add_master_items` | Tilføj flere punkter til masteren på én gang: `items` (en liste eller ét pr. linje), valgfrit `category` og `tags`. Findes navnet i samme kategori, får punktet de nye tags. Findes det kun i en anden kategori, får det de nye tags, men flyttes til `category`, hvis navnet står i `move`, eller oprettes som nyt punkt i `category`, hvis navnet står i `duplicate`. Returnerer antal `added`, `moved`, `tagged` og `skipped`. |
+| `packing_list.update_master_item` | Ret master-punktet `item` (navn eller uid): valgfrit nyt `name`, `category`, `tags` (erstatter de gamle), `quantity` (standardantal) og `weight` (gram pr. stk.). Udeladte felter beholdes, og tomme felter rydder dem. Findes navnet i flere kategorier, skal du bruge punktets uid. |
 | `packing_list.reset_master` | Erstat hele master-listen med standardlisten. Pakkelisterne berøres ikke, men deres punkter kobles til standardlistens punkter med samme navn. |
 | `packing_list.refresh_list` | Hent igen: tilføj nye master-punkter, der matcher listens tags og kategorier, men ikke punkter, der er slettet fra listen. Returnerer `added`. |
-| `packing_list.add_list_item` | Tilføj `item` til pakkelisten `entity_id` med valgfri `category` og `tags`. Med `add_to_master: true` gemmes punktet også i masteren. |
-| `packing_list.copy_to_master` | Gem et punkt fra pakkelisten i masteren og kobl dem sammen. `category` og `tags` er som udgangspunkt punktets egne. Findes navnet allerede, får det eksisterende punkt de nye tags. |
+| `packing_list.add_list_item` | Tilføj `item` til pakkelisten `entity_id` med valgfri `category`, `tags`, `quantity` og `weight`. Med `add_to_master: true` gemmes punktet også i masteren. |
+| `packing_list.copy_to_master` | Gem et punkt fra pakkelisten i masteren og kobl dem sammen. `category` og `tags` er som udgangspunkt punktets egne. Findes navnet allerede i samme kategori, får det eksisterende punkt de nye tags. |
 | `packing_list.reset_list` | Markér alle punkter som ikke pakket. |
 | `packing_list.delete_list` | Slet listen og dens entiteter. |
 
@@ -196,8 +229,8 @@ actions:
 | Entitet | Tilstand | Attributter |
 |---|---|---|
 | `todo.pakkeliste_master` | antal punkter | `packing_list_id`, `revision` |
-| `todo.<tur>` | antal punkter, der ikke er pakket | `trip_date`, `total`, `packed`, `packing_list_id`, `revision` |
-| `sensor.<tur>_pakket` | % pakket | `packed`, `total`, `remaining` |
+| `todo.<tur>` | antal punkter, der ikke er pakket | `trip_date`, `total`, `packed`, `archived`, `notes`, `packing_list_id`, `revision`, og med vægt `total_weight`, `packed_weight` (gram) |
+| `sensor.<tur>_pakket` | % pakket | `packed`, `total`, `remaining`, og med vægt `total_weight`, `packed_weight` (gram) |
 
 ## Udvikling
 
@@ -208,8 +241,8 @@ pytest
 
 ## Idéer til næste version
 
-- Omdøb og arkivér lister, og kopiér en tidligere tur.
-- Mængder pr. punkt (f.eks. "T-shirts × antal dage").
+- Omdøb lister, og kopiér en tidligere tur.
+- Antal ud fra turens længde (f.eks. "T-shirts × antal dage").
 
 ## Licens
 

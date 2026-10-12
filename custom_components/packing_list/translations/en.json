@@ -41,6 +41,14 @@
         "include_always": {
           "name": "Include #altid",
           "description": "Also add every item tagged #altid (always)."
+        },
+        "use_weight": {
+          "name": "Use weight",
+          "description": "Show the weight of each item and totals per category on the list."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Optional notes for the packing list."
         }
       }
     },
@@ -76,7 +84,7 @@
     },
     "add_master_items": {
       "name": "Add to master",
-      "description": "Adds one or more items to the master list sharing category and tags. Existing names get the new tags, and are moved to the category if listed in 'Move'.",
+      "description": "Adds one or more items to the master list with the same category and tags. The same name can exist once per category. If the name exists in another category, the existing item gets the new tags unless the name is in 'Move' or 'Create as new'.",
       "fields": {
         "items": {
           "name": "Items",
@@ -93,6 +101,10 @@
         "move": {
           "name": "Move",
           "description": "Existing items that should be moved to the category."
+        },
+        "duplicate": {
+          "name": "Create as new",
+          "description": "Items that exist in another category but should be created as a new item in the category."
         }
       }
     },
@@ -118,7 +130,7 @@
     },
     "update_master_item": {
       "name": "Update master item",
-      "description": "Changes name, category and/or tags of a master list item. Category and tags are also updated on packing lists.",
+      "description": "Changes the name, category, tags, quantity and/or weight of a master list item. Category, tags and weight are also updated on the packing lists.",
       "fields": {
         "item": {
           "name": "Item",
@@ -135,6 +147,14 @@
         "tags": {
           "name": "Tags",
           "description": "New tags (replace the old ones). Empty list removes all tags, omitted keeps them."
+        },
+        "quantity": {
+          "name": "Quantity",
+          "description": "Default quantity when the item is added to a packing list. 0 clears it, leaving it out keeps it."
+        },
+        "weight": {
+          "name": "Weight per piece",
+          "description": "Weight in grams per piece. Also updated on the packing lists. 0 clears it, leaving it out keeps it."
         }
       }
     },
@@ -179,12 +199,20 @@
         "add_to_master": {
           "name": "Also save in master",
           "description": "Also save the item on the master list."
+        },
+        "quantity": {
+          "name": "Quantity",
+          "description": "Optional quantity."
+        },
+        "weight": {
+          "name": "Weight per piece",
+          "description": "Optional weight in grams per piece."
         }
       }
     },
     "copy_to_master": {
       "name": "Save in master",
-      "description": "Saves a packing list item on the master list and links them. If the name exists, that item gets the new tags.",
+      "description": "Saves an item from a packing list to the master list and links them. If the name already exists in the same category, the existing item gets the new tags.",
       "fields": {
         "entity_id": {
           "name": "Packing list",
@@ -201,6 +229,58 @@
         "tags": {
           "name": "Tags",
           "description": "Tags in the master (omitted = the item's own)."
+        }
+      }
+    },
+    "update_list": {
+      "name": "Update packing list",
+      "description": "Changes the date, notes, use of weight or archiving of a packing list. Fields left out are kept.",
+      "fields": {
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list."
+        },
+        "trip_date": {
+          "name": "Trip date",
+          "description": "New date. Empty clears the date."
+        },
+        "notes": {
+          "name": "Notes",
+          "description": "Notes for the packing list (replaces the old ones)."
+        },
+        "use_weight": {
+          "name": "Use weight",
+          "description": "Show the weight of each item and totals per category."
+        },
+        "archived": {
+          "name": "Archived",
+          "description": "Archive the list (or bring it back from the archive)."
+        }
+      }
+    },
+    "update_list_item": {
+      "name": "Update packing list item",
+      "description": "Changes the quantity and/or weight of an item on a packing list.",
+      "fields": {
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list."
+        },
+        "item": {
+          "name": "Item",
+          "description": "The item's name or uid on the packing list."
+        },
+        "quantity": {
+          "name": "Quantity",
+          "description": "New quantity. 0 clears it, leaving it out keeps it."
+        },
+        "weight": {
+          "name": "Weight per piece",
+          "description": "New weight in grams per piece. 0 clears it, leaving it out keeps it."
+        },
+        "update_master": {
+          "name": "Save weight to master",
+          "description": "Also save the weight on the master item, and so on every list that has it."
         }
       }
     }
@@ -220,6 +300,12 @@
     },
     "list_item_not_found": {
       "message": "{item} is not on the packing list."
+    },
+    "ambiguous_item": {
+      "message": "{item} exists in several categories on the master list. Use the item's uid instead."
+    },
+    "duplicate_item": {
+      "message": "There is already an item named {item} in that category."
     }
   }
 }

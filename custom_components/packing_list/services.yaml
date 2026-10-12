@@ -27,6 +27,14 @@ create_list:
       default: true
       selector:
         boolean:
+    use_weight:
+      default: false
+      selector:
+        boolean:
+    notes:
+      selector:
+        text:
+          multiline: true
 
 add_from_master:
   fields:
@@ -82,6 +90,11 @@ add_master_items:
       selector:
         text:
           multiple: true
+    duplicate:
+      example: "Bamse"
+      selector:
+        text:
+          multiple: true
 
 update_master_item:
   fields:
@@ -103,6 +116,22 @@ update_master_item:
       selector:
         text:
           multiple: true
+    quantity:
+      example: 2
+      selector:
+        number:
+          min: 0
+          max: 1000
+          mode: box
+    weight:
+      example: 250
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: any
+          mode: box
+          unit_of_measurement: g
 
 reset_master:
 
@@ -141,6 +170,22 @@ add_list_item:
       selector:
         text:
           multiple: true
+    quantity:
+      example: 2
+      selector:
+        number:
+          min: 0
+          max: 1000
+          mode: box
+    weight:
+      example: 250
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: any
+          mode: box
+          unit_of_measurement: g
     add_to_master:
       default: false
       selector:
@@ -186,3 +231,59 @@ delete_list:
         entity:
           integration: packing_list
           domain: todo
+
+update_list:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
+    trip_date:
+      selector:
+        date:
+    notes:
+      selector:
+        text:
+          multiline: true
+    use_weight:
+      selector:
+        boolean:
+    archived:
+      selector:
+        boolean:
+
+update_list_item:
+  fields:
+    entity_id:
+      required: true
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
+    item:
+      required: true
+      example: "Strømper"
+      selector:
+        text:
+    quantity:
+      example: 2
+      selector:
+        number:
+          min: 0
+          max: 1000
+          mode: box
+    weight:
+      example: 250
+      selector:
+        number:
+          min: 0
+          max: 100000
+          step: any
+          mode: box
+          unit_of_measurement: g
+    update_master:
+      default: false
+      selector:
+        boolean:
