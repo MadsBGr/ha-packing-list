@@ -69,6 +69,35 @@ Home Assistant language (Danish or English, English otherwise).*
 
 Når du skriver en kategori eller et tag, vises de eksisterende som forslag. Et nyt oprettes bare.
 
+## Indstillinger
+
+Under **Indstillinger → Enheder & tjenester → Pakkelister → Konfigurer** vælger du, hvad en ny liste starter med:
+
+- **Medtag punkter med #altid**
+- **Brug vægt**
+- **Tags der er valgt på forhånd**, når du trykker "+ Ny liste"
+- **Vægtgrænse** i kg, f.eks. 23 for en kuffert eller 8 for håndbagage
+
+Du kan altid ændre det for den enkelte liste.
+
+## Brug i resten af Home Assistant
+
+| Entitet | Hvad den viser |
+|---|---|
+| `select.pakkeliste_aktiv` | Den **aktive pakkeliste**. Kortet åbner den, og når du vælger en liste i kortet, bliver den aktiv. Du kan også skifte den fra en automation. |
+| `sensor.pakkeliste_mangler` | Hvor mange punkter der **mangler** på den aktive liste. Attributterne `items` og `categories` indeholder navnene, så de kan bruges på en tablet, i en notifikation eller i et ur. |
+| `binary_sensor.<liste>_faerdig` | **Tændt**, når alt på listen er pakket. |
+| `sensor.<liste>_pakket` | Hvor mange procent af listen der er pakket. |
+
+Eksempel på en notifikation med det, der mangler:
+
+```yaml
+action: notify.mobile_app_telefon
+data:
+  message: >
+    Mangler stadig: {{ state_attr('sensor.pakkeliste_mangler', 'items') | join(', ') }}
+```
+
 ## Godt at vide
 
 <details><summary><b>Tags og <code>#altid</code></b></summary>
@@ -99,6 +128,8 @@ eller beholdes.
   hentes til en liste.
 - **Vægt** angives i gram pr. stk. Du kan også skrive `1,2 kg`. Slå **Brug vægt** til på en liste for at
   se vægt pr. punkt, pr. kategori og i alt.
+- **Vægtgrænse:** En liste, der bruger vægt, kan få en grænse i kg. Kortet viser grænsen ved siden af den
+  samlede vægt og advarer med rødt, når grænsen er overskredet.
 </details>
 
 <details><summary><b>Nye standardpunkter ved opdatering</b></summary>
@@ -163,8 +194,14 @@ packed_mode: bottom        # inline | bottom | hide (kun første gang – dereft
 | Entitet | Tilstand | Attributter |
 |---|---|---|
 | `todo.pakkeliste_master` | antal punkter | |
-| `todo.<liste>` | antal punkter, der ikke er pakket | `total`, `packed`, `notes`, `archived`, og med vægt `total_weight`, `packed_weight` (gram) |
-| `sensor.<liste>_pakket` | % pakket | `packed`, `total`, `remaining`, og med vægt `total_weight`, `packed_weight` |
+| `todo.<liste>` | antal punkter, der ikke er pakket | `total`, `packed`, `notes`, `archived`, og med vægt `total_weight`, `packed_weight`, `weight_limit` (gram), `over_weight_limit` |
+| `sensor.<liste>_pakket` | % pakket | `packed`, `total`, `remaining`, og med vægt som ovenfor |
+| `binary_sensor.<liste>_faerdig` | `on`, når alt er pakket | |
+| `select.pakkeliste_aktiv` | navnet på den aktive liste | `entity_id` (listens to-do-entitet) |
+| `sensor.pakkeliste_mangler` | antal manglende punkter på den aktive liste | `list`, `entity_id`, `items`, `categories` (navne pr. kategori; `""` = uden kategori), `packed`, `total` |
+
+Med engelsk sprog i HA hedder de nye entiteter `select.active_packing_list`, `sensor.packing_list_remaining`
+og `binary_sensor.<liste>_done`.
 
 De almindelige `todo.*`-tjenester (`add_item`, `update_item`, `remove_item`, `get_items`) virker på alle lister.
 </details>
@@ -175,8 +212,9 @@ De almindelige `todo.*`-tjenester (`add_item`, `update_item`, `remove_item`, `ge
 
 | Tjeneste | Hvad den gør |
 |---|---|
-| `packing_list.create_list` | Opretter en liste: `name`, valgfrit `notes`, `tags`, `categories`, `items`, `include_always` (standard `true`) og `use_weight`. |
-| `packing_list.update_list` | Omdøber (`name`) eller ændrer `notes`, `use_weight` og `archived`. |
+| `packing_list.create_list` | Opretter en liste: `name`, valgfrit `notes`, `tags`, `categories`, `items`, `include_always`, `use_weight` og `weight_limit` (gram). De tre sidste bruger integrationens indstillinger, hvis de udelades. |
+| `packing_list.update_list` | Omdøber (`name`) eller ændrer `notes`, `use_weight`, `weight_limit` (tom fjerner den) og `archived`. |
+| `packing_list.set_active_list` | Gør listen `entity_id` aktiv. Uden `entity_id` ryddes den aktive liste. |
 | `packing_list.copy_list` | Kopierer en liste. Valgfrit `name`; ellers bliver navnet "<navn> (kopi)". |
 | `packing_list.delete_list` | Sletter listen og dens entiteter. |
 | `packing_list.reset_list` | Fjerner alle flueben. |

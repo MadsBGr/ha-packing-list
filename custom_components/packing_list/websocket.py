@@ -11,7 +11,14 @@ from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import entity_registry as er
 
-from .const import DOMAIN, UNIQUE_ID_MASTER
+from .const import (
+    CONF_DEFAULT_TAGS,
+    CONF_INCLUDE_ALWAYS,
+    CONF_USE_WEIGHT,
+    CONF_WEIGHT_LIMIT,
+    DOMAIN,
+    UNIQUE_ID_MASTER,
+)
 from .manager import PackingItem
 from .services import get_manager, list_entity_id
 
@@ -40,6 +47,14 @@ def ws_get_data(
             "master_entity_id": er.async_get(hass).async_get_entity_id(
                 "todo", DOMAIN, UNIQUE_ID_MASTER
             ),
+            "active_list_id": manager.active_list_id,
+            # Defaults for new lists (Settings → Packing lists → Configure).
+            "settings": {
+                "include_always": manager.options.get(CONF_INCLUDE_ALWAYS, True),
+                "use_weight": manager.options.get(CONF_USE_WEIGHT, False),
+                "default_tags": manager.options.get(CONF_DEFAULT_TAGS, []),
+                "weight_limit": (manager.options.get(CONF_WEIGHT_LIMIT) or 0) * 1000 or None,
+            },
             "master": [item.as_dict() for item in manager.master],
             # Default items added in a newer release that the user hasn't added or skipped yet.
             "new_defaults": [
@@ -58,6 +73,7 @@ def ws_get_data(
                     "excluded": plist.excluded,
                     "notes": plist.notes,
                     "use_weight": plist.use_weight,
+                    "weight_limit": plist.weight_limit,
                     "archived": plist.archived,
                 }
                 for plist in manager.lists.values()

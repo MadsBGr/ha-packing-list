@@ -1,12 +1,18 @@
 """Constants for the Packing List integration."""
 
 DOMAIN = "packing_list"
-VERSION = "0.11.0"
+VERSION = "0.12.0"
 
 STORAGE_KEY = f"{DOMAIN}.storage"
 STORAGE_VERSION = 1
 
 CONF_SEED_MASTER = "seed_master"
+
+# Options (Settings → Packing lists → Configure): defaults for new lists.
+CONF_INCLUDE_ALWAYS = "include_always"
+CONF_USE_WEIGHT = "use_weight"
+CONF_DEFAULT_TAGS = "default_tags"
+CONF_WEIGHT_LIMIT = "weight_limit_kg"
 
 # Key used for the master list in the manager's listener registry.
 MASTER_KEY = "master"
@@ -21,6 +27,10 @@ DEFAULTS_NOTIFICATION_ID = f"{DOMAIN}_new_defaults"
 
 UNIQUE_ID_MASTER = f"{DOMAIN}_master"
 UNIQUE_ID_LIST_PREFIX = f"{DOMAIN}_list_"
+UNIQUE_ID_ACTIVE = f"{DOMAIN}_active_list"
+UNIQUE_ID_REMAINING = f"{DOMAIN}_remaining"
+# Suffixes after f"{UNIQUE_ID_LIST_PREFIX}{list_id}" for a list's other entities.
+LIST_ENTITY_SUFFIXES = ("_progress", "_done")
 
 CARD_URL = f"/{DOMAIN}/packing-list-card.js"
 
@@ -30,6 +40,9 @@ NAMES = {
         "title": "Pakkelister",
         "master": "Pakkeliste master",
         "progress": "{name} pakket",
+        "done": "{name} færdig",
+        "active": "Pakkeliste aktiv",
+        "remaining": "Pakkeliste mangler",
         "copy": "{name} (kopi)",
         "defaults_title": "Pakkelister: nye standardpunkter",
         "defaults_message": (
@@ -42,6 +55,9 @@ NAMES = {
         "title": "Packing lists",
         "master": "Packing list master",
         "progress": "{name} packed",
+        "done": "{name} done",
+        "active": "Active packing list",
+        "remaining": "Packing list remaining",
         "copy": "{name} (copy)",
         "defaults_title": "Packing lists: new default items",
         "defaults_message": (

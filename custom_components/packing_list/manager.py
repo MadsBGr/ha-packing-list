@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, field, fields
 import re
 from typing import Any
@@ -25,6 +25,9 @@ _TAG_RE = re.compile(r"(?<!\S)#([^\s#@]+)")
 _CATEGORY_RE = re.compile(r"(?<!\S)@([^\s#@]+)")
 
 SAVE_DELAY = 1
+
+# Listener key for entities that follow every change (active list, what's missing).
+ANY_KEY = "*"
 
 # Default for optional arguments where None means "clear the value".
 KEEP: Any = object()
@@ -174,6 +177,18 @@ class PackingList:
     notes: str = ""
     use_weight: bool = False
     archived: bool = False
+    # Optional maximum total weight in grams (e.g. 23 kg for a suitcase).
+    weight_limit: float | None = None
+
+    @property
+    def done(self) -> bool:
+        """Everything on a non-empty list is packed."""
+        return bool(self.items) and all(item.packed for item in self.items)
+
+    @property
+    def over_weight_limit(self) -> bool:
+        """The list uses weight, has a limit and its total exceeds it."""
+        return bool(self.use_weight and self.weight_limit and self.total_weight > self.weight_limit)
 
     @property
     def total_weight(self) -> float:
@@ -199,6 +214,10 @@ class PackingListManager:
         # language of that default list. New defaults in later releases are those not seen.
         self.defaults_seen: list[str] = []
         self.defaults_language: str | None = None
+        # The list automations, Assist and the card follow (set via the select entity).
+        self.active_list_id: str | None = None
+        # The config entry's options (defaults for new lists); set by the integration.
+        self.options: Mapping[str, Any] = {}
         self.revision = 0
         self._listeners: dict[str, list[Callable[[], None]]] = {}
 
@@ -227,6 +246,8 @@ class PackingListManager:
             items = [_from_dict(PackingItem, i) for i in raw.get("items", [])]
             plist = _from_dict(PackingList, {**raw, "items": items})
             self.lists[plist.list_id] = plist
+        active = data.get("active_list_id")
+        self.active_list_id = active if active in self.lists else None
         if "defaults_seen" in data:
             self.defaults_seen = data["defaults_seen"]
             self.defaults_language = data.get("defaults_language") or self.language
@@ -251,6 +272,7 @@ class PackingListManager:
             "lists": [asdict(plist) for plist in self.lists.values()],
             "defaults_seen": self.defaults_seen,
             "defaults_language": self.defaults_language,
+            "active_list_id": self.active_list_id,
         }
 
     def _schedule_save(self) -> None:
@@ -277,8 +299,31 @@ class PackingListManager:
     def _changed(self, key: str) -> None:
         self.revision += 1
         self._schedule_save()
-        for listener in list(self._listeners.get(key, [])):
+        keys = [key] if key == ANY_KEY else [key, ANY_KEY]
+        for listener in [listener for k in keys for listener in self._listeners.get(k, [])]:
             listener()
+
+    @callback
+    def options_updated(self, options: Mapping[str, Any]) -> None:
+        """New defaults from the options flow (the card picks them up via the revision)."""
+        self.options = options
+        self._changed(MASTER_KEY)
+
+    # ---------------------------------------------------------- active list
+
+    @property
+    def active_list(self) -> PackingList | None:
+        """The active list, if one is set."""
+        return self.lists.get(self.active_list_id) if self.active_list_id else None
+
+    @callback
+    def set_active_list(self, list_id: str | None) -> None:
+        """Make a list the active one (None clears it)."""
+        if list_id is not None and list_id not in self.lists:
+            raise KeyError(list_id)
+        if list_id != self.active_list_id:
+            self.active_list_id = list_id
+            self._changed(ANY_KEY)
 
     # --------------------------------------------------------------- items
 
@@ -578,6 +623,7 @@ class PackingListManager:
         *,
         use_weight: bool = False,
         notes: str = "",
+        weight_limit: float | None = None,
     ) -> PackingList:
         """Create an empty trip list."""
         plist = PackingList(
@@ -585,6 +631,7 @@ class PackingListManager:
             name=name.strip(),
             use_weight=use_weight,
             notes=notes.strip(),
+            weight_limit=_clean_weight(weight_limit),
         )
         self.lists[plist.list_id] = plist
         self._changed(plist.list_id)
@@ -611,6 +658,7 @@ class PackingListManager:
             excluded=list(source.excluded),
             notes=source.notes,
             use_weight=source.use_weight,
+            weight_limit=source.weight_limit,
         )
         self.lists[plist.list_id] = plist
         self._changed(plist.list_id)
@@ -625,12 +673,18 @@ class PackingListManager:
         notes: str | None = None,
         use_weight: bool | None = None,
         archived: bool | None = None,
+        weight_limit: float | None = KEEP,
     ) -> None:
-        """Rename a trip list or change its notes, weight setting or archived state.
+        """Rename a trip list or change its notes, weight settings or archived state.
 
-        ``None`` keeps a value.
+        ``None`` keeps a value; for ``weight_limit`` ``None`` clears it. An
+        archived list stops being the active list.
         """
         plist = self.lists[list_id]
+        if weight_limit is not KEEP:
+            plist.weight_limit = _clean_weight(weight_limit)
+        if archived and self.active_list_id == list_id:
+            self.active_list_id = None
         if name is not None and name.strip():
             plist.name = name.strip()
         if notes is not None:
@@ -672,6 +726,8 @@ class PackingListManager:
     def delete_list(self, list_id: str) -> None:
         """Delete a trip list (no-op if it is already gone)."""
         if self.lists.pop(list_id, None) is not None:
+            if self.active_list_id == list_id:
+                self.active_list_id = None
             self._changed(list_id)
 
     @callback

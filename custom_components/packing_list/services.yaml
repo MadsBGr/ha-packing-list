@@ -21,17 +21,32 @@ create_list:
         text:
           multiple: true
     include_always:
-      default: true
       selector:
         boolean:
     use_weight:
-      default: false
       selector:
         boolean:
+    weight_limit:
+      example: 23000
+      selector:
+        number:
+          min: 0
+          max: 500000
+          step: 100
+          unit_of_measurement: g
+          mode: box
     notes:
       selector:
         text:
           multiline: true
+
+set_active_list:
+  fields:
+    entity_id:
+      selector:
+        entity:
+          integration: packing_list
+          domain: todo
 
 add_from_master:
   fields:
@@ -274,6 +289,15 @@ update_list:
       selector:
         text:
           multiline: true
+    weight_limit:
+      example: 23000
+      selector:
+        number:
+          min: 0
+          max: 500000
+          step: 100
+          unit_of_measurement: g
+          mode: box
     use_weight:
       selector:
         boolean:

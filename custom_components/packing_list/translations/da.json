@@ -36,15 +36,19 @@
         },
         "include_always": {
           "name": "Medtag #altid",
-          "description": "Hent også alle punkter med tagget #altid."
+          "description": "Hent også alle punkter med tagget #altid. Udeladt = integrationens standard."
         },
         "use_weight": {
           "name": "Brug vægt",
-          "description": "Vis vægt pr. punkt og summer pr. kategori på listen."
+          "description": "Vis vægt på listen. Udeladt = integrationens standard."
         },
         "notes": {
           "name": "Noter",
           "description": "Valgfri noter til pakkelisten."
+        },
+        "weight_limit": {
+          "name": "Vægtgrænse",
+          "description": "Største samlede vægt i gram (0 eller tom fjerner grænsen)."
         }
       }
     },
@@ -251,6 +255,10 @@
         "archived": {
           "name": "Arkiveret",
           "description": "Arkivér listen (eller hent den tilbage fra arkivet)."
+        },
+        "weight_limit": {
+          "name": "Vægtgrænse",
+          "description": "Største samlede vægt i gram (0 eller tom fjerner grænsen)."
         }
       }
     },
@@ -313,6 +321,16 @@
           "description": "Navnene på de nye standardpunkter. Udeladt = alle."
         }
       }
+    },
+    "set_active_list": {
+      "name": "Vælg aktiv pakkeliste",
+      "description": "Gør en pakkeliste til den aktive (den som kortet åbner, og som 'Pakkeliste mangler' følger). Uden liste ryddes den aktive.",
+      "fields": {
+        "entity_id": {
+          "name": "Pakkeliste",
+          "description": "Pakkelisten der skal være aktiv."
+        }
+      }
     }
   },
   "exceptions": {
@@ -336,6 +354,24 @@
     },
     "duplicate_item": {
       "message": "Der findes allerede et punkt med navnet {item} i den kategori."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Standard for nye pakkelister",
+        "description": "Bruges som udgangspunkt, når du opretter en ny pakkeliste. Du kan altid ændre det for den enkelte liste.",
+        "data": {
+          "include_always": "Medtag punkter med #altid",
+          "use_weight": "Brug vægt",
+          "default_tags": "Tags der er valgt på forhånd",
+          "weight_limit_kg": "Vægtgrænse (0 = ingen)"
+        },
+        "data_description": {
+          "default_tags": "Disse tags er markeret, når du trykker \"+ Ny liste\".",
+          "weight_limit_kg": "F.eks. 23 for en kuffert eller 8 for håndbagage. Gælder lister der bruger vægt."
+        }
+      }
     }
   }
 }

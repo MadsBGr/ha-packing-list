@@ -22,8 +22,12 @@ from homeassistant.helpers import config_validation as cv, entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
+    CONF_INCLUDE_ALWAYS,
+    CONF_USE_WEIGHT,
+    CONF_WEIGHT_LIMIT,
     DEFAULTS_NOTIFICATION_ID,
     DOMAIN,
+    LIST_ENTITY_SUFFIXES,
     NAMES,
     SIGNAL_LIST_ADDED,
     UNIQUE_ID_LIST_PREFIX,
@@ -46,6 +50,7 @@ ATTR_NOTES = "notes"
 ATTR_USE_WEIGHT = "use_weight"
 ATTR_ARCHIVED = "archived"
 ATTR_UPDATE_MASTER = "update_master"
+ATTR_WEIGHT_LIMIT = "weight_limit"
 
 SERVICE_CREATE_LIST = "create_list"
 SERVICE_ADD_FROM_MASTER = "add_from_master"
@@ -62,6 +67,7 @@ SERVICE_UPDATE_LIST_ITEM = "update_list_item"
 SERVICE_COPY_LIST = "copy_list"
 SERVICE_ADD_NEW_DEFAULTS = "add_new_defaults"
 SERVICE_SKIP_NEW_DEFAULTS = "skip_new_defaults"
+SERVICE_SET_ACTIVE_LIST = "set_active_list"
 
 ATTR_TO_MASTER = "add_to_master"
 
@@ -97,16 +103,20 @@ _SELECTION_SCHEMA = {
 # Lists no longer have a date; the field is still accepted (and ignored) so old scripts keep working.
 _IGNORED_TRIP_DATE = {vol.Optional(ATTR_TRIP_DATE): vol.Any(None, cv.string, cv.date)}
 
+# include_always, use_weight and weight_limit default to the integration's options.
 CREATE_LIST_SCHEMA = vol.Schema(
     {
         vol.Required(ATTR_NAME): cv.string,
         **_IGNORED_TRIP_DATE,
-        vol.Optional(ATTR_INCLUDE_ALWAYS, default=True): cv.boolean,
-        vol.Optional(ATTR_USE_WEIGHT, default=False): cv.boolean,
+        vol.Optional(ATTR_INCLUDE_ALWAYS): cv.boolean,
+        vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
+        vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
         vol.Optional(ATTR_NOTES, default=""): cv.string,
         **_SELECTION_SCHEMA,
     }
 )
+
+SET_ACTIVE_LIST_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTITY_ID): vol.Any(None, cv.entity_id)})
 
 ADD_FROM_MASTER_SCHEMA = vol.Schema(
     {
@@ -167,6 +177,7 @@ UPDATE_LIST_SCHEMA = vol.Schema(
         vol.Required(ATTR_ENTITY_ID): cv.entity_id,
         vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(min=1)),
         **_IGNORED_TRIP_DATE,
+        vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
         vol.Optional(ATTR_NOTES): cv.string,
         vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
         vol.Optional(ATTR_ARCHIVED): cv.boolean,
@@ -261,6 +272,17 @@ def _optional(data: dict[str, Any], key: str) -> Any:
     return data[key] if key in data else KEEP
 
 
+@callback
+def async_remove_list_entities(hass: HomeAssistant, list_id: str) -> None:
+    """Remove a list's to-do, progress and done entities from the registry."""
+    registry = er.async_get(hass)
+    prefix = f"{UNIQUE_ID_LIST_PREFIX}{list_id}"
+    wanted = {prefix, *(f"{prefix}{suffix}" for suffix in LIST_ENTITY_SUFFIXES)}
+    for entry in list(registry.entities.values()):
+        if entry.platform == DOMAIN and entry.unique_id in wanted:
+            registry.async_remove(entry.entity_id)
+
+
 async def _async_add_list_entities(hass: HomeAssistant, list_id: str) -> str | None:
     """Create the entities of a new list and return its to-do entity id."""
     async_dispatcher_send(hass, SIGNAL_LIST_ADDED, list_id)
@@ -305,12 +327,19 @@ def async_register_services(hass: HomeAssistant) -> None:
 
     async def create_list(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
+        options = manager.options
+        default_limit = options.get(CONF_WEIGHT_LIMIT) or 0
+        data = {
+            ATTR_INCLUDE_ALWAYS: options.get(CONF_INCLUDE_ALWAYS, True),
+            **call.data,
+        }
         plist = manager.create_list(
             call.data[ATTR_NAME],
-            use_weight=call.data[ATTR_USE_WEIGHT],
+            use_weight=call.data.get(ATTR_USE_WEIGHT, options.get(CONF_USE_WEIGHT, False)),
             notes=call.data[ATTR_NOTES],
+            weight_limit=call.data.get(ATTR_WEIGHT_LIMIT, default_limit * 1000 or None),
         )
-        added = manager.add_from_master(plist.list_id, **_selection(call.data))
+        added = manager.add_from_master(plist.list_id, **_selection(data))
         entity_id = await _async_add_list_entities(hass, plist.list_id)
         return {"list_id": plist.list_id, "entity_id": entity_id, "added": added}
 
@@ -323,6 +352,11 @@ def async_register_services(hass: HomeAssistant) -> None:
         plist = manager.copy_list(list_id, name)
         entity_id = await _async_add_list_entities(hass, plist.list_id)
         return {"list_id": plist.list_id, "entity_id": entity_id, "items": len(plist.items)}
+
+    async def set_active_list(call: ServiceCall) -> None:
+        manager = get_manager(hass)
+        entity_id = call.data.get(ATTR_ENTITY_ID)
+        manager.set_active_list(_resolve_list_id(hass, manager, entity_id) if entity_id else None)
 
     async def add_new_defaults(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
@@ -352,11 +386,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     async def delete_list(call: ServiceCall) -> None:
         manager = get_manager(hass)
         list_id = _resolve_list_id(hass, manager, call.data[ATTR_ENTITY_ID])
-        registry = er.async_get(hass)
-        prefix = f"{UNIQUE_ID_LIST_PREFIX}{list_id}"
-        for entry in list(registry.entities.values()):
-            if entry.platform == DOMAIN and entry.unique_id in (prefix, f"{prefix}_progress"):
-                registry.async_remove(entry.entity_id)
+        async_remove_list_entities(hass, list_id)
         manager.delete_list(list_id)
 
     async def add_master_items(call: ServiceCall) -> ServiceResponse:
@@ -460,6 +490,7 @@ def async_register_services(hass: HomeAssistant) -> None:
         manager.update_list(
             list_id,
             name=call.data.get(ATTR_NAME),
+            weight_limit=_optional(call.data, ATTR_WEIGHT_LIMIT),
             notes=call.data.get(ATTR_NOTES),
             use_weight=call.data.get(ATTR_USE_WEIGHT),
             archived=call.data.get(ATTR_ARCHIVED),
@@ -532,4 +563,7 @@ def async_register_services(hass: HomeAssistant) -> None:
     )
     hass.services.async_register(
         DOMAIN, SERVICE_SKIP_NEW_DEFAULTS, skip_new_defaults, schema=NEW_DEFAULTS_SCHEMA
+    )
+    hass.services.async_register(
+        DOMAIN, SERVICE_SET_ACTIVE_LIST, set_active_list, schema=SET_ACTIVE_LIST_SCHEMA
     )

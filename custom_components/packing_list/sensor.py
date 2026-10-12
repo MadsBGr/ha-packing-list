@@ -11,8 +11,9 @@ from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from . import PackingListConfigEntry
-from .const import NAMES, SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX
-from .manager import PackingListManager
+from .const import NAMES, SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX, UNIQUE_ID_REMAINING
+from .manager import ANY_KEY, PackingListManager
+from .services import list_entity_id
 
 
 async def async_setup_entry(
@@ -22,7 +23,10 @@ async def async_setup_entry(
 ) -> None:
     """Add a progress sensor for each trip list."""
     manager = entry.runtime_data
-    async_add_entities(PackingProgressSensor(manager, list_id) for list_id in manager.lists)
+    async_add_entities(
+        [RemainingSensor(manager)]
+        + [PackingProgressSensor(manager, list_id) for list_id in manager.lists]
+    )
 
     @callback
     def _list_added(list_id: str) -> None:
@@ -74,4 +78,49 @@ class PackingProgressSensor(SensorEntity):
         if plist and plist.use_weight:
             attrs["total_weight"] = plist.total_weight
             attrs["packed_weight"] = plist.packed_weight
+            attrs["weight_limit"] = plist.weight_limit
+            attrs["over_weight_limit"] = plist.over_weight_limit
         return attrs
+
+
+class RemainingSensor(SensorEntity):
+    """What is still missing on the active list: the count, and the names as attributes."""
+
+    _attr_should_poll = False
+    _attr_icon = "mdi:bag-personal-outline"
+    _attr_unique_id = UNIQUE_ID_REMAINING
+
+    def __init__(self, manager: PackingListManager) -> None:
+        self._manager = manager
+        self._attr_name = NAMES[manager.language]["remaining"]
+
+    async def async_added_to_hass(self) -> None:
+        """Follow every change (the active list or its items)."""
+        self.async_on_remove(self._manager.async_add_listener(ANY_KEY, self.async_write_ha_state))
+
+    @property
+    def native_value(self) -> int | None:
+        """Number of items not packed on the active list (unknown without one)."""
+        plist = self._manager.active_list
+        return None if plist is None else sum(not item.packed for item in plist.items)
+
+    @property
+    def extra_state_attributes(self) -> dict[str, Any]:
+        """The active list and what's missing, sorted and grouped by category."""
+        plist = self._manager.active_list
+        if plist is None:
+            return {"list": None, "entity_id": None, "items": [], "categories": {}}
+        missing = sorted(
+            (item for item in plist.items if not item.packed), key=lambda i: i.summary.casefold()
+        )
+        categories: dict[str, list[str]] = {}
+        for item in sorted(missing, key=lambda i: (i.category or "￿").casefold()):
+            categories.setdefault(item.category or "", []).append(item.summary)
+        return {
+            "list": plist.name,
+            "entity_id": list_entity_id(self.hass, plist.list_id),
+            "items": [item.summary for item in missing],
+            "categories": categories,
+            "packed": sum(item.packed for item in plist.items),
+            "total": len(plist.items),
+        }

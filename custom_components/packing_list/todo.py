@@ -27,6 +27,7 @@ from .const import (
     VERSION,
 )
 from .manager import PackingListManager
+from .services import async_remove_list_entities
 
 
 async def async_setup_entry(
@@ -57,11 +58,7 @@ async def async_setup_entry(
 @callback
 def _delete_list_and_sensor(hass: HomeAssistant, manager: PackingListManager, list_id: str) -> None:
     """Finish deleting a list whose to-do entity was removed outside the integration."""
-    registry = er.async_get(hass)
-    if sensor := registry.async_get_entity_id(
-        "sensor", DOMAIN, f"{UNIQUE_ID_LIST_PREFIX}{list_id}_progress"
-    ):
-        registry.async_remove(sensor)
+    async_remove_list_entities(hass, list_id)
     manager.delete_list(list_id)
 
 
@@ -206,4 +203,6 @@ class TripTodoEntity(_PackingTodoEntity):
         if plist and plist.use_weight:
             attrs["total_weight"] = plist.total_weight
             attrs["packed_weight"] = plist.packed_weight
+            attrs["weight_limit"] = plist.weight_limit
+            attrs["over_weight_limit"] = plist.over_weight_limit
         return attrs

@@ -16,7 +16,7 @@ from .manager import PackingListManager
 from .services import async_register_services, async_update_defaults_notification
 from .websocket import async_register_websocket
 
-PLATFORMS = [Platform.TODO, Platform.SENSOR]
+PLATFORMS = [Platform.TODO, Platform.SENSOR, Platform.BINARY_SENSOR, Platform.SELECT]
 
 CONFIG_SCHEMA = cv.config_entry_only_config_schema(DOMAIN)
 
@@ -35,7 +35,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: PackingListConfigEntry) 
     """Load packing list data and set up entities."""
     manager = PackingListManager(hass, entry.data.get(CONF_SEED_MASTER, False))
     await manager.async_load()
+    manager.options = entry.options
     entry.runtime_data = manager
+    entry.async_on_unload(entry.add_update_listener(_options_updated))
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     entry.async_on_unload(
         hass.bus.async_listen(
@@ -44,6 +46,11 @@ async def async_setup_entry(hass: HomeAssistant, entry: PackingListConfigEntry) 
     )
     async_update_defaults_notification(hass, manager)
     return True
+
+
+async def _options_updated(hass: HomeAssistant, entry: PackingListConfigEntry) -> None:
+    """New defaults for new lists; no reload needed."""
+    entry.runtime_data.options_updated(entry.options)
 
 
 @callback

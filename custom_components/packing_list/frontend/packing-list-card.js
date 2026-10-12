@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.11.0";
+const CARD_VERSION = "0.12.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODE_KEY = "packing-list-card.packed-mode";
 const PACKED_MODES = ["inline", "bottom", "hide"];
@@ -134,6 +134,9 @@ const STRINGS = {
     archivedHeading: "Archived",
     archivedNotice: "This list is archived.",
     listName: "List name",
+    weightLimit: "Weight limit in kg, e.g. 23 (empty = none)",
+    limitInfo: "limit {limit}",
+    overLimit: "⚠ {over} over the weight limit",
     copyList: "Copy list",
     copyHeading: 'Copy "{name}"',
     copyNameDefault: "{name} (copy)",
@@ -264,6 +267,9 @@ const STRINGS = {
     archivedHeading: "Arkiverede",
     archivedNotice: "Listen er arkiveret.",
     listName: "Listens navn",
+    weightLimit: "Vægtgrænse i kg, f.eks. 23 (tom = ingen)",
+    limitInfo: "grænse {limit}",
+    overLimit: "⚠ {over} over vægtgrænsen",
     copyList: "Kopiér liste",
     copyHeading: 'Kopiér "{name}"',
     copyNameDefault: "{name} (kopi)",
@@ -295,13 +301,16 @@ const splitTags = (text) =>
     .map((t) => t.replace(/^#/, "").trim().toLowerCase())
     .filter(Boolean);
 
-// "250", "1,5 kg", "1.5kg" -> grams; empty or invalid -> null.
-const parseWeight = (text) => {
+// "250", "1,5 kg", "1.5kg" -> grams; empty or invalid -> null. A number without unit is in
+// defaultUnit (grams for items, kg for a list's weight limit).
+const parseWeight = (text, defaultUnit = "g") => {
   const match = String(text ?? "").trim().replace(",", ".").match(/^(\d+(?:\.\d+)?|\.\d+)\s*(kg|g)?$/i);
   if (!match) return null;
-  const grams = Number(match[1]) * (match[2]?.toLowerCase() === "kg" ? 1000 : 1);
+  const unit = (match[2] || defaultUnit).toLowerCase();
+  const grams = Number(match[1]) * (unit === "kg" ? 1000 : 1);
   return grams > 0 ? grams : null;
 };
+const parseLimit = (text) => parseWeight(text, "kg");
 const parseQuantity = (text) => {
   const value = parseInt(String(text ?? "").trim(), 10);
   return value > 0 ? value : null;
@@ -538,10 +547,33 @@ class PackingListCard extends HTMLElement {
 
   _ensureList() {
     const lists = this._data?.lists || [];
+    // Follow the active list when it changes elsewhere (select entity, automation, another device),
+    // unless the card is configured to show a specific list.
+    const active = this._data?.active_list_id ?? null;
+    const activeChanged = active !== this._lastActive;
+    this._lastActive = active;
+    if (activeChanged && active && !this._config.entity && lists.some((l) => l.list_id === active)) {
+      if (this._listId !== active) this._exitDeleteMode();
+      this._listId = active;
+      return;
+    }
     if (this._listId && lists.some((l) => l.list_id === this._listId)) return;
     const configured = this._config.entity && lists.find((l) => l.entity_id === this._config.entity);
-    this._listId = (configured || lists.find((l) => !l.archived) || lists[0])?.list_id ?? null;
+    const activeList = lists.find((l) => l.list_id === active);
+    this._listId = (configured || activeList || lists.find((l) => !l.archived) || lists[0])?.list_id ?? null;
     this._exitDeleteMode();
+  }
+
+  // Make a list the active one (the select entity, "remaining" sensor and other cards follow).
+  async _setActive(list) {
+    if (!list || list.archived || !list.entity_id || this._data?.active_list_id === list.list_id) return;
+    this._lastActive = list.list_id;
+    await this._call("packing_list", "set_active_list", { entity_id: list.entity_id });
+  }
+
+  // Weight limit as shown in an input: kg without unit, e.g. "23" or "7,5".
+  _limitValue(grams) {
+    return grams ? (grams / 1000).toLocaleString(this._lang, { maximumFractionDigits: 2 }) : "";
   }
 
   get _list() {
@@ -882,14 +914,20 @@ class PackingListCard extends HTMLElement {
       const total = list.items.length;
       const packed = list.items.filter((i) => i.packed).length;
       const pct = total ? Math.round((packed * 100) / total) : 0;
+      const totalWeight = list.items.reduce((sum, i) => sum + itemWeight(i), 0);
+      const limit = list.use_weight ? list.weight_limit : null;
       const weight = list.use_weight
         ? ` · ${this._t("weightProgress", {
             packed: this._fmtWeight(list.items.filter((i) => i.packed).reduce((sum, i) => sum + itemWeight(i), 0)),
-            total: this._fmtWeight(list.items.reduce((sum, i) => sum + itemWeight(i), 0)),
-          })}`
+            total: this._fmtWeight(totalWeight),
+          })}` + (limit ? ` · ${this._t("limitInfo", { limit: this._fmtWeight(limit) })}` : "")
         : "";
+      const over =
+        limit && totalWeight > limit
+          ? `<div class="error overlimit">${esc(this._t("overLimit", { over: this._fmtWeight(totalWeight - limit) }))}</div>`
+          : "";
       progress = `<div class="progress"><div class="bar"><div style="width:${pct}%"></div></div>
-        <span>${esc(this._t("progress", { packed, total }) + weight)}</span></div>`;
+        <span>${esc(this._t("progress", { packed, total }) + weight)}</span></div>${over}`;
     }
     const icon = (action, iconName, title, cls = "") =>
       `<button class="icon ${cls}" data-action="${action}" title="${esc(this._t(title))}"><ha-icon icon="${iconName}"></ha-icon></button>`;
@@ -919,9 +957,15 @@ class PackingListCard extends HTMLElement {
       <textarea data-input="lNotes" data-enter="save-list" rows="3" placeholder="${esc(this._t("notesPlaceholder"))}">${esc(f.lNotes || "")}</textarea>
       <label class="check"><input type="checkbox" data-change="lWeight" ${f.lWeight ? "checked" : ""}>
         ${esc(this._t("useWeight"))}</label>
+      ${f.lWeight ? this._renderLimitInput("lLimit", "save-list") : ""}
       <div class="row"><button class="primary" data-action="save-list">${esc(this._t("save"))}</button>
         <button data-action="toggle-edit-list">${esc(this._t("cancel"))}</button></div>
     </div>`;
+  }
+
+  _renderLimitInput(key, enter) {
+    return `<input data-input="${key}" data-enter="${enter}" inputmode="decimal"
+      placeholder="${esc(this._t("weightLimit"))}" value="${esc(this._form[key] || "")}">`;
   }
 
   _renderCopyList(list) {
@@ -967,6 +1011,7 @@ class PackingListCard extends HTMLElement {
         ${esc(this._t("includeAlways", { tag: this._alwaysTag }))}</label>
       <label class="check"><input type="checkbox" data-change="newWeight" ${f.newWeight ? "checked" : ""}>
         ${esc(this._t("useWeight"))}</label>
+      ${f.newWeight ? this._renderLimitInput("newLimit", "create-list") : ""}
       <div class="row"><button class="primary" data-action="create-list">${esc(this._t("create"))}</button>
         <button data-action="toggle-new">${esc(this._t("cancel"))}</button></div>
     </div>`;
@@ -1259,6 +1304,10 @@ class PackingListCard extends HTMLElement {
       this._showCopyList = false;
       this._packNotice = null;
       this._render();
+      this._setActive(this._list).catch((err) => {
+        this._error = err.message || String(err);
+        this._render();
+      });
     } else if (key === "packedMode") {
       this._packedMode = ev.target.value;
       try {
@@ -1271,8 +1320,10 @@ class PackingListCard extends HTMLElement {
       this._form.newAlways = ev.target.checked;
     } else if (key === "newWeight") {
       this._form.newWeight = ev.target.checked;
+      this._render(); // show/hide the weight limit field
     } else if (key === "lWeight") {
       this._form.lWeight = ev.target.checked;
+      this._render();
     } else if (key === "iToMaster") {
       this._form.iToMaster = ev.target.checked;
     } else if (key === "xToMaster") {
@@ -1360,6 +1411,19 @@ class PackingListCard extends HTMLElement {
           break;
         case "toggle-new":
           this._showNew = !this._showNew;
+          if (this._showNew) {
+            // Start from the defaults in Settings → Packing lists → Configure.
+            const s = this._data?.settings || {};
+            const known = new Set(this._allTags());
+            Object.assign(f, {
+              newName: "",
+              newNotes: "",
+              newTags: (s.default_tags || []).filter((t) => known.has(t)),
+              newAlways: s.include_always !== false,
+              newWeight: !!s.use_weight,
+              newLimit: this._limitValue(s.weight_limit),
+            });
+          }
           this._render();
           break;
         case "toggle-new-tag": {
@@ -1380,6 +1444,7 @@ class PackingListCard extends HTMLElement {
             tags: f.newTags || [],
             include_always: f.newAlways !== false,
             use_weight: !!f.newWeight,
+            weight_limit: f.newWeight ? parseLimit(f.newLimit) : null,
           };
           const res = await this._callWithResponse("create_list", data);
           this._listId = res.list_id ?? this._listId;
@@ -1387,6 +1452,7 @@ class PackingListCard extends HTMLElement {
           this._showNew = false;
           this._tab = "pack";
           await this._fetch();
+          await this._setActive(this._list);
           break;
         }
         case "delete-list":
@@ -1414,7 +1480,12 @@ class PackingListCard extends HTMLElement {
           this._showEditList = !this._showEditList;
           this._showCopyList = false;
           if (this._showEditList && list) {
-            Object.assign(f, { lName: list.name, lNotes: list.notes || "", lWeight: !!list.use_weight });
+            Object.assign(f, {
+              lName: list.name,
+              lNotes: list.notes || "",
+              lWeight: !!list.use_weight,
+              lLimit: this._limitValue(list.weight_limit),
+            });
           }
           this._focusPanel = this._showEditList ? "edit" : null;
           this._render();
@@ -1425,6 +1496,7 @@ class PackingListCard extends HTMLElement {
           this._showEditList = false;
           this._render();
           const data = { entity_id: list.entity_id, notes: f.lNotes || "", use_weight: !!f.lWeight };
+          if (f.lWeight) data.weight_limit = parseLimit(f.lLimit);
           const name = (f.lName || "").trim();
           if (name && name !== list.name) data.name = name;
           await this._call("packing_list", "update_list", data);
@@ -1447,6 +1519,7 @@ class PackingListCard extends HTMLElement {
           this._listId = res.list_id ?? this._listId;
           this._tab = "pack";
           await this._fetch();
+          await this._setActive(this._list);
           break;
         }
         case "add-defaults":

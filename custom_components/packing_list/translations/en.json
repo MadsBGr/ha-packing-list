@@ -35,16 +35,20 @@
           "description": "Add these master items (summary or uid)."
         },
         "include_always": {
-          "name": "Include #altid",
-          "description": "Also add every item tagged #altid (always)."
+          "name": "Include #always",
+          "description": "Also add every item tagged #always. Omitted = the integration's default."
         },
         "use_weight": {
           "name": "Use weight",
-          "description": "Show the weight of each item and totals per category on the list."
+          "description": "Show weight on the list. Omitted = the integration's default."
         },
         "notes": {
           "name": "Notes",
           "description": "Optional notes for the packing list."
+        },
+        "weight_limit": {
+          "name": "Weight limit",
+          "description": "Maximum total weight in grams (0 or empty removes the limit)."
         }
       }
     },
@@ -251,6 +255,10 @@
         "archived": {
           "name": "Archived",
           "description": "Archive the list (or bring it back from the archive)."
+        },
+        "weight_limit": {
+          "name": "Weight limit",
+          "description": "Maximum total weight in grams (0 or empty removes the limit)."
         }
       }
     },
@@ -313,6 +321,16 @@
           "description": "Names of the new default items. Omitted = all."
         }
       }
+    },
+    "set_active_list": {
+      "name": "Set active packing list",
+      "description": "Makes a packing list the active one (opened by the card and followed by 'Packing list remaining'). Without a list the active one is cleared.",
+      "fields": {
+        "entity_id": {
+          "name": "Packing list",
+          "description": "The packing list to make active."
+        }
+      }
     }
   },
   "exceptions": {
@@ -336,6 +354,24 @@
     },
     "duplicate_item": {
       "message": "There is already an item named {item} in that category."
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Defaults for new packing lists",
+        "description": "Used as the starting point when you create a new packing list. You can always change it for a single list.",
+        "data": {
+          "include_always": "Include items tagged #always",
+          "use_weight": "Use weight",
+          "default_tags": "Tags selected in advance",
+          "weight_limit_kg": "Weight limit (0 = none)"
+        },
+        "data_description": {
+          "default_tags": "These tags are selected when you press \"+ New list\".",
+          "weight_limit_kg": "E.g. 23 for a suitcase or 8 for hand luggage. Applies to lists that use weight."
+        }
+      }
     }
   }
 }
