@@ -1,251 +1,252 @@
-# Pakkelister for Home Assistant
+# Packing Lists for Home Assistant
 
-[![hacs_badge](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
+[![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 [![Validate](https://github.com/MadsBGr/ha-packing-list/actions/workflows/validate.yaml/badge.svg)](https://github.com/MadsBGr/ha-packing-list/actions/workflows/validate.yaml)
 
-Du laver **én master-liste** med alt, hvad du nogensinde pakker. Til hver tur laver du en
-**pakkeliste** med netop det, der skal med, og krydser af, mens du pakker.
-Hver pakkeliste er en almindelig to-do-liste i Home Assistant, så du kan også bruge den i appen og via Assist.
+Keep **one master list** of everything you ever pack. For each trip, create a **packing list** with just
+what you need, and check things off as you pack.
+Every packing list is a regular Home Assistant to-do list, so it also works in the app and with Assist.
 
-*English: A master packing list and per-trip packing lists built from it. The card and texts follow your
-Home Assistant language (Danish or English, English otherwise).*
+The card and all texts follow your Home Assistant language: Danish or English (English for any other language).
 
-**Indhold:** [Kom i gang](#kom-i-gang) · [Sådan bruger du det](#sådan-bruger-du-det) ·
-[Kortets faner](#kortets-faner) · [Godt at vide](#godt-at-vide) · [Fejlfinding](#fejlfinding) ·
-[For avancerede](#for-avancerede)
+**Contents:** [Getting started](#getting-started) · [How to use it](#how-to-use-it) ·
+[The card](#the-card) · [Settings](#settings) · [Use in Home Assistant](#use-in-the-rest-of-home-assistant) ·
+[Good to know](#good-to-know) · [Troubleshooting](#troubleshooting) · [Advanced](#advanced)
 
 ---
 
-## Kom i gang
+## Getting started
 
-1. **Installer:** I HACS → ⋮ → **Brugerdefinerede repositories** tilføjer du
-   `https://github.com/MadsBGr/ha-packing-list` med typen **Integration**. Søg derefter efter
-   **Pakkelister**, installer den og genstart Home Assistant.
-2. **Tilføj integrationen:** Gå til **Indstillinger → Enheder & tjenester → Tilføj integration → Pakkelister**.
-   Sæt flueben ved "Start med en foreslået master-liste", hvis du vil have en færdig liste at bygge videre på.
-3. **Tilføj kortet** til et dashboard og genindlæs browseren én gang (Ctrl+Shift+R):
+1. **Install:** In HACS, search for **Packing Lists** and download it. If it isn't listed yet, add
+   `https://github.com/MadsBGr/ha-packing-list` under HACS → ⋮ → **Custom repositories** (type
+   **Integration**) first. Restart Home Assistant.
+2. **Add the integration:** **Settings → Devices & services → Add integration → Packing Lists**.
+   Tick "Start with a suggested master list" to get a ready-made list to build on.
+3. **Add the card** to a dashboard and reload the browser once (Ctrl+Shift+R):
    ```yaml
    type: custom:packing-list-card
    ```
 
-## Sådan bruger du det
+## How to use it
 
-| | Hvad du gør | Hvor |
+| | What you do | Where |
 |---|---|---|
-| 1 | **Byg din master-liste.** Skriv punkterne ind, gerne mange ad gangen, med kategori (f.eks. *Tøj*) og tags (f.eks. `#ski`, `#sommer`). | Fanen **Master** |
-| 2 | **Opret en pakkeliste** med navn, eventuelle noter og de tags, turen handler om. Punkter med de tags kommer med automatisk, og det samme gør punkter med `#altid`. | **+ Ny liste** |
-| 3 | **Tilpas listen.** Sæt eller fjern flueben ved enkelte punkter, eller tilføj noget, der kun skal med på denne tur. | Fanen **Vælg fra master** og nederst i fanen **Pak** |
-| 4 | **Pak.** Tryk på et punkt, når det er i kufferten. | Fanen **Pak** |
-| 5 | **Efter turen:** Arkivér listen, eller kopiér den til næste gang. | Knapperne ved listevælgeren |
+| 1 | **Build your master list.** Add items (many at a time if you like) with a category (e.g. *Clothes*) and tags (e.g. `#ski`, `#summer`). | **Master** tab |
+| 2 | **Create a packing list** with a name, optional notes and the tags the trip is about. Items with those tags are added automatically, and so are items tagged `#always`. | **+ New list** |
+| 3 | **Adjust the list.** Tick or untick individual items, or add something just for this trip. | **Pick from master** tab and the bottom of the **Pack** tab |
+| 4 | **Pack.** Tap an item when it's in the bag. | **Pack** tab |
+| 5 | **After the trip:** archive the list, or copy it for next time. | Buttons next to the list picker |
 
-## Kortets faner
+## The card
 
-**Øverst** vælger du liste. Knapperne ved siden af listevælgeren:
-- **+ Ny liste** opretter en liste.
-- **✏️** omdøber listen og retter noter og vægt.
-- **⧉** kopierer listen; det virker også for arkiverede lister.
-- **Arkivér / hent tilbage** flytter listen til og fra arkivet.
-- **🗑** sletter listen.
+**At the top** you pick a list. The buttons next to the list picker:
+- **+ New list** creates a list.
+- **✏️** renames the list and edits its notes, weight setting and weight limit.
+- **⧉** copies the list; this also works for archived lists.
+- **Archive / restore** moves the list to and from the archive.
+- **🗑** deletes the list.
 
-**Pak**
-- Tryk på et punkt for at markere det som pakket.
-- Vælg, om pakkede punkter skal stå i deres kategori, samles nederst eller skjules.
-- **Hent igen** henter nye punkter fra masteren, der passer til listens tags.
-- **Slet punkter** lader dig markere flere punkter og slette dem på én gang.
-- **Fjern flueben** markerer hele listen som ikke pakket, f.eks. til hjemturen.
-- Nederst tilføjer du et punkt, der kun skal med på denne tur. Med justér-knappen kan du også give det
-  kategori og tags og gemme det i masteren.
+**Pack**
+- Tap an item to mark it as packed.
+- Choose whether packed items stay in their category, move to the bottom or are hidden.
+- **Fetch again** adds new master items that match the list's tags.
+- **Delete items** lets you select several items and delete them at once.
+- **Uncheck all** marks the whole list as not packed, e.g. for the trip home.
+- At the bottom you add an item just for this trip. With the adjust button you can also give it a
+  category and tags and save it to the master list.
 
-**Vælg fra master**
-- Sæt flueben ved det, der skal med.
-- **+ #tag** henter alle punkter med et tag.
-- **tilføj alle** henter en hel kategori.
+**Pick from master**
+- Tick what should come along.
+- **+ #tag** adds every item with that tag.
+- **add all** adds a whole category.
 
 **Master**
-- Tilføj et eller flere punkter ad gangen, ét pr. linje. De får alle samme kategori og tags.
-- **✏️** ved et punkt retter navn, kategori, tags, antal og vægt.
-- **🗑** sletter punktet.
-- Nederst kan du nulstille masteren til standardlisten. Det kræver bekræftelse.
+- Add one or more items at a time, one per line. They all get the same category and tags.
+- **✏️** next to an item edits its name, category, tags, quantity and weight.
+- **🗑** deletes the item.
+- At the bottom you can reset the master list to the default list. This asks for confirmation.
 
-Når du skriver en kategori eller et tag, vises de eksisterende som forslag. Et nyt oprettes bare.
+When you type a category or a tag, existing ones are suggested. A new one is simply created.
 
-## Indstillinger
+## Settings
 
-Under **Indstillinger → Enheder & tjenester → Pakkelister → Konfigurer** vælger du, hvad en ny liste starter med:
+Under **Settings → Devices & services → Packing Lists → Configure** you choose what a new list starts with:
 
-- **Medtag punkter med #altid**
-- **Brug vægt**
-- **Tags der er valgt på forhånd**, når du trykker "+ Ny liste"
-- **Vægtgrænse** i kg, f.eks. 23 for en kuffert eller 8 for håndbagage
+- **Include items tagged #always**
+- **Use weight**
+- **Tags selected in advance** when you press "+ New list"
+- **Weight limit** in kg, e.g. 23 for a suitcase or 8 for hand luggage
 
-Du kan altid ændre det for den enkelte liste.
+You can always change these for a single list.
 
-## Brug i resten af Home Assistant
+## Use in the rest of Home Assistant
 
-| Entitet | Hvad den viser |
+| Entity | What it shows |
 |---|---|
-| `select.pakkeliste_aktiv` | Den **aktive pakkeliste**. Kortet åbner den, og når du vælger en liste i kortet, bliver den aktiv. Du kan også skifte den fra en automation. |
-| `sensor.pakkeliste_mangler` | Hvor mange punkter der **mangler** på den aktive liste. Attributterne `items` og `categories` indeholder navnene, så de kan bruges på en tablet, i en notifikation eller i et ur. |
-| `binary_sensor.<liste>_faerdig` | **Tændt**, når alt på listen er pakket. |
-| `sensor.<liste>_pakket` | Hvor mange procent af listen der er pakket. |
+| `select.active_packing_list` | The **active packing list**. The card opens it, and picking a list in the card makes it active. You can also change it from an automation. |
+| `sensor.packing_list_remaining` | How many items are still **missing** on the active list. The attributes `items` and `categories` hold their names, for a tablet, a notification or a watch. |
+| `binary_sensor.<list>_done` | **On** when everything on the list is packed. |
+| `sensor.<list>_packed` | Percentage of the list that is packed. |
 
-Eksempel på en notifikation med det, der mangler:
+With Home Assistant in Danish the entities are named `select.pakkeliste_aktiv`,
+`sensor.pakkeliste_mangler`, `binary_sensor.<list>_faerdig` and `sensor.<list>_pakket`.
+
+Example notification with what's missing:
 
 ```yaml
-action: notify.mobile_app_telefon
+action: notify.mobile_app_phone
 data:
   message: >
-    Mangler stadig: {{ state_attr('sensor.pakkeliste_mangler', 'items') | join(', ') }}
+    Still missing: {{ state_attr('sensor.packing_list_remaining', 'items') | join(', ') }}
 ```
 
-## Godt at vide
+## Good to know
 
-<details><summary><b>Tags og <code>#altid</code></b></summary>
+<details><summary><b>Tags and <code>#always</code></b></summary>
 
-- **Tags** bruges til at hente punkter ind på en liste, f.eks. `#ski`, `#fly` eller `#børn`.
-- **`#altid`** (eller `#always`) betyder, at punktet kommer med på alle nye lister.
-- **I to-do-visningen** ligger kategori og tags i punktets beskrivelse som `@Tøj #sommer #strand`. Så kan
-  de også rettes i HA's almindelige to-do-visning. Brug `_` i stedet for mellemrum i en kategori.
+- **Tags** are used to pull items onto a list, e.g. `#ski`, `#flight` or `#kids`.
+- **`#always`** (or the Danish `#altid`) means the item is added to every new list.
+- **In the to-do view** category and tags live in the item's description as `@Clothes #summer #beach`.
+  That way they can also be edited in Home Assistant's own to-do view. Use `_` instead of spaces in a
+  category.
 </details>
 
-<details><summary><b>Hent igen og slettede punkter</b></summary>
+<details><summary><b>Fetch again and deleted items</b></summary>
 
-En pakkeliste husker, hvilke tags og kategorier den er fyldt med, og hvilke punkter du har slettet fra den.
-**Hent igen** tilføjer nye punkter, der passer. Matcher nogle af dem punkter, du tidligere har slettet,
-bliver du spurgt, om de også skal med.
+A packing list remembers which tags and categories it was filled with, and which items you deleted from it.
+**Fetch again** adds new matching items. If some of them were deleted from the list before, you are asked
+whether they should come back too.
 </details>
 
-<details><summary><b>Samme navn i flere kategorier</b></summary>
+<details><summary><b>The same name in several categories</b></summary>
 
-Et navn må findes én gang pr. kategori, f.eks. "Bamse" under både *Børn* og *Legetøj*. Tilføjer du et
-navn, der allerede findes i en anden kategori, spørger kortet, om punktet skal flyttes, oprettes som nyt
-eller beholdes.
+A name can exist once per category, e.g. "Teddy bear" under both *Kids* and *Toys*. If you add a name that
+already exists in another category, the card asks whether to move it, create a new item or keep it.
 </details>
 
-<details><summary><b>Antal og vægt</b></summary>
+<details><summary><b>Quantity, weight and weight limit</b></summary>
 
-- **Antal** er valgfrit og vises som "5× Strømper". Antallet på et master-punkt er standard, når punktet
-  hentes til en liste.
-- **Vægt** angives i gram pr. stk. Du kan også skrive `1,2 kg`. Slå **Brug vægt** til på en liste for at
-  se vægt pr. punkt, pr. kategori og i alt.
-- **Vægtgrænse:** En liste, der bruger vægt, kan få en grænse i kg. Kortet viser grænsen ved siden af den
-  samlede vægt og advarer med rødt, når grænsen er overskredet.
+- **Quantity** is optional and shown as "5× Socks". The quantity on a master item is the default when the
+  item is added to a list.
+- **Weight** is in grams per piece; you can also type `1.2 kg`. Turn on **Use weight** on a list to see the
+  weight per item, per category and in total.
+- **Weight limit:** a list that uses weight can have a limit in kg. The card shows the limit next to the
+  total weight and warns in red when it is exceeded.
 </details>
 
-<details><summary><b>Nye standardpunkter ved opdatering</b></summary>
+<details><summary><b>New default items in an update</b></summary>
 
-Din master-liste er din egen. En opdatering via HACS ændrer den aldrig.
+Your master list is your own. An update through HACS never changes it.
 
-Har en ny version tilføjet punkter til standardlisten, får du en notifikation i HA, og fanen **Master**
-viser punkterne med to valg: **Tilføj til min master** eller **Spring over**. Dine egne ændringer, og
-standardpunkter du har slettet, bliver ikke rørt.
+If a new version adds items to the default list, you get a notification in Home Assistant, and the
+**Master** tab shows the items with two choices: **Add to my master** or **Skip**. Your own changes, and
+default items you have deleted, are left alone.
 </details>
 
-<details><summary><b>Omdøbe, flytte eller slette i Home Assistant</b></summary>
+<details><summary><b>Renaming, moving or deleting in Home Assistant</b></summary>
 
-- **Omdøb i kortet:** Det nye navn ses overalt i HA. Entity id'et ændrer sig ikke.
-- **Omdøb i HA:** Omdøber du en pakkeliste under *Indstillinger → Entiteter*, får listen også det navn i kortet.
-- **Nyt entity id:** Ændrer du en listes entity id, virker kortet og tjenesterne stadig.
-- **Slet en listes entitet i HA:** Listen bliver slettet rent, inklusive sensoren.
-- **Slet master-entiteten:** Den bliver genskabt, fordi integrationen ikke kan undvære den.
+- **Rename in the card:** the new name is shown everywhere in Home Assistant. The entity id stays the same.
+- **Rename in Home Assistant:** if you rename a packing list under *Settings → Entities*, the list gets
+  that name in the card too.
+- **New entity id:** if you change a list's entity id, the card and the actions keep working.
+- **Delete a list's entity in Home Assistant:** the list is deleted cleanly, including its sensors.
+- **Delete the master entity:** it is recreated, because the integration needs it.
 </details>
 
-<details><summary><b>Sprog</b></summary>
+<details><summary><b>Language</b></summary>
 
-Kortet, navnene og fejlbeskederne følger sproget i din HA-profil. Dansk og engelsk er understøttet, og
-alle andre sprog bliver engelsk. Standardlisten oprettes på det sprog, HA har ved første installation.
+The card, names and error messages follow the language in your Home Assistant profile. Danish and English
+are supported; any other language falls back to English. The default list is created in the language
+Home Assistant has at the first installation.
 </details>
 
-<details><summary><b>Hvor gemmes data?</b></summary>
+<details><summary><b>Where is the data stored?</b></summary>
 
-Lokalt i Home Assistants egen lagring (`.storage/packing_list.storage`), som kommer med i dine backups.
-Der er ingen cloud og ingen eksterne afhængigheder.
+Locally in Home Assistant's own storage (`.storage/packing_list.storage`), which is included in your
+backups. There is no cloud and there are no external dependencies.
 </details>
 
-## Fejlfinding
+## Troubleshooting
 
-- **"Custom element doesn't exist: packing-list-card":** Genindlæs browseren med Ctrl+Shift+R. I appen
-  rydder du frontend-cachen under Indstillinger → Companion App → Fejlfinding. Integrationen tilføjer selv
-  ressourcen `/packing_list/packing-list-card.js` under Dashboards → Ressourcer.
-- **Dashboards i YAML-tilstand:** Tilføj selv ressourcen:
+- **"Custom element doesn't exist: packing-list-card":** reload the browser with Ctrl+Shift+R. In the
+  companion app, clear the frontend cache under Settings → Companion app → Troubleshooting. The integration
+  adds the resource `/packing_list/packing-list-card.js` under Dashboards → Resources by itself.
+- **Dashboards in YAML mode:** add the resource yourself:
   ```yaml
   lovelace:
     resources:
       - url: /packing_list/packing-list-card.js
         type: module
   ```
-- **Efter en opdatering** genindlæser kortet selv siden første gang, du åbner dashboardet.
+- **After an update** the card reloads the page by itself the first time you open the dashboard.
 
-## For avancerede
+## Advanced
 
-<details><summary><b>Kortets indstillinger</b></summary>
+<details><summary><b>Card options</b></summary>
 
 ```yaml
 type: custom:packing-list-card
-title: Pakkeliste          # valgfri overskrift
-entity: todo.skiferie      # valgfri: den liste, der vises først
+title: Packing list        # optional heading
+entity: todo.ski_trip      # optional: always show this list (instead of the active one)
 default_tab: pack          # pack | pick | master
-packed_mode: bottom        # inline | bottom | hide (kun første gang – derefter huskes dit valg)
+packed_mode: bottom        # inline | bottom | hide (first time only – after that your choice is remembered)
 ```
 </details>
 
-<details><summary><b>Entiteter</b></summary>
+<details><summary><b>Entities and attributes</b></summary>
 
-| Entitet | Tilstand | Attributter |
+| Entity | State | Attributes |
 |---|---|---|
-| `todo.pakkeliste_master` | antal punkter | |
-| `todo.<liste>` | antal punkter, der ikke er pakket | `total`, `packed`, `notes`, `archived`, og med vægt `total_weight`, `packed_weight`, `weight_limit` (gram), `over_weight_limit` |
-| `sensor.<liste>_pakket` | % pakket | `packed`, `total`, `remaining`, og med vægt som ovenfor |
-| `binary_sensor.<liste>_faerdig` | `on`, når alt er pakket | |
-| `select.pakkeliste_aktiv` | navnet på den aktive liste | `entity_id` (listens to-do-entitet) |
-| `sensor.pakkeliste_mangler` | antal manglende punkter på den aktive liste | `list`, `entity_id`, `items`, `categories` (navne pr. kategori; `""` = uden kategori), `packed`, `total` |
+| `todo.packing_list_master` | number of items | |
+| `todo.<list>` | number of items not packed | `total`, `packed`, `notes`, `archived`, and with weight `total_weight`, `packed_weight`, `weight_limit` (grams), `over_weight_limit` |
+| `sensor.<list>_packed` | % packed | `packed`, `total`, `remaining`, and with weight as above |
+| `binary_sensor.<list>_done` | `on` when everything is packed | |
+| `select.active_packing_list` | name of the active list | `entity_id` (the list's to-do entity) |
+| `sensor.packing_list_remaining` | number of missing items on the active list | `list`, `entity_id`, `items`, `categories` (names per category; `""` = no category), `packed`, `total` |
 
-Med engelsk sprog i HA hedder de nye entiteter `select.active_packing_list`, `sensor.packing_list_remaining`
-og `binary_sensor.<liste>_done`.
-
-De almindelige `todo.*`-tjenester (`add_item`, `update_item`, `remove_item`, `get_items`) virker på alle lister.
+The standard `todo.*` actions (`add_item`, `update_item`, `remove_item`, `get_items`) work on every list.
 </details>
 
-<details><summary><b>Tjenester</b></summary>
+<details><summary><b>Actions</b></summary>
 
-**Lister**
+**Lists**
 
-| Tjeneste | Hvad den gør |
+| Action | What it does |
 |---|---|
-| `packing_list.create_list` | Opretter en liste: `name`, valgfrit `notes`, `tags`, `categories`, `items`, `include_always`, `use_weight` og `weight_limit` (gram). De tre sidste bruger integrationens indstillinger, hvis de udelades. |
-| `packing_list.update_list` | Omdøber (`name`) eller ændrer `notes`, `use_weight`, `weight_limit` (tom fjerner den) og `archived`. |
-| `packing_list.set_active_list` | Gør listen `entity_id` aktiv. Uden `entity_id` ryddes den aktive liste. |
-| `packing_list.copy_list` | Kopierer en liste. Valgfrit `name`; ellers bliver navnet "<navn> (kopi)". |
-| `packing_list.delete_list` | Sletter listen og dens entiteter. |
-| `packing_list.reset_list` | Fjerner alle flueben. |
-| `packing_list.add_from_master` | Henter punkter efter `tags`, `categories` eller `items`. Med `include_excluded: true` kommer slettede punkter også med. |
-| `packing_list.refresh_list` | Hent igen. Med `include_excluded: true` kommer slettede punkter også med. |
-| `packing_list.add_list_item` | Tilføjer et punkt med valgfri `category`, `tags`, `quantity` og `weight`. Med `add_to_master: true` gemmes det også i masteren. |
-| `packing_list.update_list_item` | Retter `quantity` og `weight` på et punkt. Med `update_master: true` gemmes vægten også i masteren. |
-| `packing_list.copy_to_master` | Gemmer et punkt fra listen i masteren. |
+| `packing_list.create_list` | Creates a list: `name`, optional `notes`, `tags`, `categories`, `items`, `include_always`, `use_weight` and `weight_limit` (grams). The last three use the integration's settings when left out. |
+| `packing_list.update_list` | Renames (`name`) or changes `notes`, `use_weight`, `weight_limit` (empty removes it) and `archived`. |
+| `packing_list.copy_list` | Copies a list. Optional `name`; otherwise the copy is called "<name> (copy)". |
+| `packing_list.delete_list` | Deletes the list and its entities. |
+| `packing_list.set_active_list` | Makes the list `entity_id` the active one. Without `entity_id` the active list is cleared. |
+| `packing_list.reset_list` | Unchecks every item. |
+| `packing_list.add_from_master` | Adds items by `tags`, `categories` or `items`. With `include_excluded: true` deleted items come back too. |
+| `packing_list.refresh_list` | Fetch again. With `include_excluded: true` deleted items come back too. |
+| `packing_list.add_list_item` | Adds an item with optional `category`, `tags`, `quantity` and `weight`. With `add_to_master: true` it is also saved to the master list. |
+| `packing_list.update_list_item` | Changes `quantity` and `weight` of an item. With `update_master: true` the weight is also saved to the master list. |
+| `packing_list.copy_to_master` | Saves an item from the list to the master list. |
 
-**Master**
+**Master list**
 
-| Tjeneste | Hvad den gør |
+| Action | What it does |
 |---|---|
-| `packing_list.add_master_items` | Tilføjer punkter (`items`, ét pr. linje) med fælles `category` og `tags`. Med `move` og `duplicate` styrer du punkter, der findes i en anden kategori. |
-| `packing_list.update_master_item` | Retter `name`, `category`, `tags`, `quantity` og `weight` på `item` (navn eller uid). |
-| `packing_list.add_new_defaults` | Tilføjer nye standardpunkter fra en nyere version, enten alle eller dem i `items`. |
-| `packing_list.skip_new_defaults` | Springer nye standardpunkter over. |
-| `packing_list.reset_master` | Erstatter hele masteren med standardlisten. |
+| `packing_list.add_master_items` | Adds items (`items`, one per line) with a shared `category` and `tags`. `move` and `duplicate` control items that exist in another category. |
+| `packing_list.update_master_item` | Changes `name`, `category`, `tags`, `quantity` and `weight` of `item` (name or uid). |
+| `packing_list.add_new_defaults` | Adds new default items from a newer version: all, or those in `items`. |
+| `packing_list.skip_new_defaults` | Skips new default items. |
+| `packing_list.reset_master` | Replaces the whole master list with the default list. |
 
-Eksempel:
+Example:
 
 ```yaml
 action: packing_list.create_list
 data:
-  name: Skiferie
-  tags: [ski, vinter]
-  notes: Husk liftkort
+  name: Ski trip
+  tags: [ski, winter]
+  notes: Remember the lift pass
 ```
 </details>
 
-<details><summary><b>Udvikling</b></summary>
+<details><summary><b>Development</b></summary>
 
 ```bash
 pip install -r requirements_test.txt
@@ -253,6 +254,6 @@ pytest
 ```
 </details>
 
-## Licens
+## License
 
 MIT

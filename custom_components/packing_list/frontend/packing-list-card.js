@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.12.0";
+const CARD_VERSION = "0.13.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODE_KEY = "packing-list-card.packed-mode";
 const PACKED_MODES = ["inline", "bottom", "hide"];

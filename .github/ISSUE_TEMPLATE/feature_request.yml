@@ -1,0 +1,11 @@
+name: Feature request
+description: Suggest an idea for Packing Lists
+labels: [enhancement]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What would you like?
+      description: Describe what you'd like to be able to do and why.
+    validations:
+      required: true

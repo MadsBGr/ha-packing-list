@@ -1,7 +1,7 @@
 """Constants for the Packing List integration."""
 
 DOMAIN = "packing_list"
-VERSION = "0.12.0"
+VERSION = "0.13.0"
 
 STORAGE_KEY = f"{DOMAIN}.storage"
 STORAGE_VERSION = 1

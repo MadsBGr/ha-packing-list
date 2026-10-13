@@ -1,6 +1,6 @@
 {
   "domain": "packing_list",
-  "name": "Pakkelister",
+  "name": "Packing Lists",
   "codeowners": ["@MadsBGr"],
   "config_flow": true,
   "dependencies": ["frontend", "http", "lovelace", "persistent_notification", "websocket_api"],
@@ -10,5 +10,5 @@
   "issue_tracker": "https://github.com/MadsBGr/ha-packing-list/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.12.0"
+  "version": "0.13.0"
 }
