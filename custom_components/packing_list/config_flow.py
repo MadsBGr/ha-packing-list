@@ -15,17 +15,21 @@ from homeassistant.helpers.selector import (
     NumberSelectorMode,
     SelectSelector,
     SelectSelectorConfig,
+    SelectSelectorMode,
 )
 
 from .const import (
     CONF_DEFAULT_TAGS,
     CONF_INCLUDE_ALWAYS,
+    CONF_PACKED_MODE,
     CONF_QUANTITY_CONTROLS,
     CONF_SEED_MASTER,
     CONF_USE_WEIGHT,
     CONF_WEIGHT_LIMIT,
+    DEFAULT_PACKED_MODE,
     DOMAIN,
     NAMES,
+    PACKED_MODES,
     language,
 )
 
@@ -87,6 +91,15 @@ class PackingListOptionsFlow(OptionsFlow):
                     vol.Required(
                         CONF_QUANTITY_CONTROLS, default=options.get(CONF_QUANTITY_CONTROLS, False)
                     ): BooleanSelector(),
+                    vol.Required(
+                        CONF_PACKED_MODE, default=options.get(CONF_PACKED_MODE, DEFAULT_PACKED_MODE)
+                    ): SelectSelector(
+                        SelectSelectorConfig(
+                            options=list(PACKED_MODES),
+                            translation_key=CONF_PACKED_MODE,
+                            mode=SelectSelectorMode.DROPDOWN,
+                        )
+                    ),
                     vol.Optional(
                         CONF_DEFAULT_TAGS, default=options.get(CONF_DEFAULT_TAGS, [])
                     ): SelectSelector(

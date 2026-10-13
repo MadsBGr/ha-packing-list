@@ -38,6 +38,14 @@ create_list:
     quantity_controls:
       selector:
         boolean:
+    packed_mode:
+      selector:
+        select:
+          translation_key: packed_mode
+          options:
+            - inline
+            - bottom
+            - hide
     notes:
       selector:
         text:
@@ -291,6 +299,14 @@ update_list:
     quantity_controls:
       selector:
         boolean:
+    packed_mode:
+      selector:
+        select:
+          translation_key: packed_mode
+          options:
+            - inline
+            - bottom
+            - hide
     notes:
       selector:
         text:

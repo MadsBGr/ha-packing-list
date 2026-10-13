@@ -1,7 +1,7 @@
 """Constants for the Packing List integration."""
 
 DOMAIN = "packing_list"
-VERSION = "1.1.0"
+VERSION = "1.2.0"
 
 STORAGE_KEY = f"{DOMAIN}.storage"
 STORAGE_VERSION = 2  # see PackingListStore for the history
@@ -14,6 +14,11 @@ CONF_USE_WEIGHT = "use_weight"
 CONF_DEFAULT_TAGS = "default_tags"
 CONF_WEIGHT_LIMIT = "weight_limit_kg"
 CONF_QUANTITY_CONTROLS = "quantity_controls"
+CONF_PACKED_MODE = "packed_mode"
+
+# How packed items are shown on the card: in their category, at the bottom, or hidden.
+PACKED_MODES = ("inline", "bottom", "hide")
+DEFAULT_PACKED_MODE = "inline"
 
 # Key used for the master list in the manager's listener registry.
 MASTER_KEY = "master"

@@ -53,6 +53,10 @@
         "quantity_controls": {
           "name": "Antal-knapper på kortet",
           "description": "Vis − og + ved hvert punkt, så antallet kan ændres direkte på kortet. Udeladt = integrationens standard."
+        },
+        "packed_mode": {
+          "name": "Visning af pakkede punkter",
+          "description": "I deres kategori, samlet nederst eller skjult. Udeladt = integrationens standard."
         }
       }
     },
@@ -267,6 +271,10 @@
         "quantity_controls": {
           "name": "Antal-knapper på kortet",
           "description": "Vis − og + ved hvert punkt, så antallet kan ændres direkte på kortet."
+        },
+        "packed_mode": {
+          "name": "Visning af pakkede punkter",
+          "description": "I deres kategori, samlet nederst eller skjult."
         }
       }
     },
@@ -374,13 +382,24 @@
           "use_weight": "Brug vægt",
           "default_tags": "Tags der er valgt på forhånd",
           "weight_limit_kg": "Standard-vægtgrænse (0 = ingen)",
-          "quantity_controls": "Vis antal-knapper på kortet"
+          "quantity_controls": "Vis antal-knapper på kortet",
+          "packed_mode": "Visning af pakkede punkter"
         },
         "data_description": {
           "default_tags": "Disse tags er markeret, når du trykker \"+ Ny liste\".",
           "weight_limit_kg": "Den vægtgrænse nye lister starter med, f.eks. 23 for en kuffert eller 8 for håndbagage. Kan ændres på hver liste. Gælder lister der bruger vægt.",
-          "quantity_controls": "Viser − og + ved hvert punkt i fanen Pak, så antallet kan ændres direkte. Kan slås til og fra på hver liste."
+          "quantity_controls": "Viser − og + ved hvert punkt i fanen Pak, så antallet kan ændres direkte. Kan slås til og fra på hver liste.",
+          "packed_mode": "Hvordan pakkede punkter vises på kortet for nye lister. Kan ændres på hver liste."
         }
+      }
+    }
+  },
+  "selector": {
+    "packed_mode": {
+      "options": {
+        "inline": "I deres kategori",
+        "bottom": "Samlet nederst under 'Pakket'",
+        "hide": "Skjult"
       }
     }
   }

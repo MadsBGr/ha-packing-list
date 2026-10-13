@@ -53,6 +53,10 @@
         "quantity_controls": {
           "name": "Quantity buttons on the card",
           "description": "Show − and + next to each item, so the quantity can be changed directly on the card. Omitted = the integration's default."
+        },
+        "packed_mode": {
+          "name": "How packed items are shown",
+          "description": "In their category, together at the bottom or hidden. Omitted = the integration's default."
         }
       }
     },
@@ -267,6 +271,10 @@
         "quantity_controls": {
           "name": "Quantity buttons on the card",
           "description": "Show − and + next to each item, so the quantity can be changed directly on the card."
+        },
+        "packed_mode": {
+          "name": "How packed items are shown",
+          "description": "In their category, together at the bottom or hidden."
         }
       }
     },
@@ -374,13 +382,24 @@
           "use_weight": "Use weight",
           "default_tags": "Tags selected in advance",
           "weight_limit_kg": "Default weight limit (0 = none)",
-          "quantity_controls": "Show quantity buttons on the card"
+          "quantity_controls": "Show quantity buttons on the card",
+          "packed_mode": "How packed items are shown"
         },
         "data_description": {
           "default_tags": "These tags are selected when you press \"+ New list\".",
           "weight_limit_kg": "The weight limit new lists start with, e.g. 23 for a suitcase or 8 for hand luggage. Can be changed on each list. Applies to lists that use weight.",
-          "quantity_controls": "Shows − and + next to each item on the Pack tab, so the quantity can be changed directly. Can be turned on and off on each list."
+          "quantity_controls": "Shows − and + next to each item on the Pack tab, so the quantity can be changed directly. Can be turned on and off on each list.",
+          "packed_mode": "How packed items are shown on the card for new lists. Can be changed on each list."
         }
+      }
+    }
+  },
+  "selector": {
+    "packed_mode": {
+      "options": {
+        "inline": "In their category",
+        "bottom": "Together at the bottom under 'Packed'",
+        "hide": "Hidden"
       }
     }
   }

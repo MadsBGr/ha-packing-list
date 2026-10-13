@@ -119,6 +119,7 @@ test("a new list starts from the configured defaults", async () => {
   const data = baseData();
   data.settings = {
     include_always: false, use_weight: true, default_tags: ["fly", "gone"], weight_limit: 23000, quantity_controls: true,
+    packed_mode: "hide",
   };
   const card = await makeCard({ data });
   card.$('[data-action="toggle-new"]').click();
@@ -126,6 +127,7 @@ test("a new list starts from the configured defaults", async () => {
   assert.deepEqual(card.$$('[data-action="toggle-new-tag"].on').map((b) => b.textContent), ["#fly"]);
   assert.equal(card.$('[data-input="newLimit"]').value, "23");
   assert.equal(card.$('[data-change="newQty"]').checked, true);
+  assert.equal(card.$('select[data-input="newPacked"]').value, "hide");
   const name = card.$('[data-input="newName"]');
   name.value = "Rejse";
   name.dispatchEvent(new Event("input", { bubbles: true }));
@@ -134,8 +136,36 @@ test("a new list starts from the configured defaults", async () => {
   const create = card.calls.find((c) => c.service === "create_list");
   assert.deepEqual(create.service_data, {
     name: "Rejse", notes: "", tags: ["fly"], include_always: false, use_weight: true, weight_limit: 23000,
-    quantity_controls: true,
+    quantity_controls: true, packed_mode: "hide",
   });
+});
+
+test("how packed items are shown is a list setting, edited under List settings", async () => {
+  const data = baseData();
+  data.settings.packed_mode = "inline";
+  data.lists[0].packed_mode = "bottom";
+  const card = await makeCard({ data });
+  // Not on the pack tab any more.
+  assert.equal(card.$('select[data-change="packedMode"]'), null);
+  assert.ok(card.$(".packed-head"), "the list's own setting (bottom) is used");
+
+  // A list without its own setting follows the default.
+  data.lists[0].packed_mode = null;
+  data.settings.packed_mode = "hide";
+  await card.refresh();
+  assert.equal(card.$(".packed-head"), null);
+  assert.deepEqual(card.$$(".item .name").map((e) => e.textContent.trim()), ["Tandbørste"]);
+
+  card.$('[data-action="toggle-edit-list"]').click();
+  await tick();
+  const select = card.$('select[data-input="lPacked"]');
+  assert.equal(select.value, "hide");
+  select.value = "bottom";
+  select.dispatchEvent(new Event("input", { bubbles: true }));
+  card.$('[data-action="save-list"]').click();
+  await tick();
+  const call = card.calls.find((c) => c.service === "update_list");
+  assert.equal(call.data.packed_mode, "bottom");
 });
 
 test("quantity buttons change the quantity directly on the card", async () => {

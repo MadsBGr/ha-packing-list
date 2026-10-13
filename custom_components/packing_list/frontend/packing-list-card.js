@@ -7,12 +7,11 @@
  *   title: Pakkeliste        # optional
  *   entity: todo.skiferie    # optional: list selected by default
  *   default_tab: pack        # optional: pack | pick | master
- *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
+ *   packed_mode: bottom      # optional: inline | bottom | hide – overrides the list's own setting
  */
 
-const CARD_VERSION = "1.1.0";
+const CARD_VERSION = "1.2.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
-const PACKED_MODE_KEY = "packing-list-card.packed-mode";
 const PACKED_MODES = ["inline", "bottom", "hide"];
 // Items without a category are grouped under this key (shown as "Andet"/"Other").
 const UNCATEGORIZED = "";
@@ -126,7 +125,7 @@ const STRINGS = {
     saveWeightToMaster: "Also save the weight in the master list",
     editItemTitle: "Quantity and weight",
     editList: "Edit list",
-    editListTitle: "Name, notes and weight",
+    editListTitle: "List settings",
     notes: "Notes",
     notesPlaceholder: "Notes for this list, e.g. what to buy before the trip",
     archive: "Archive list",
@@ -262,7 +261,7 @@ const STRINGS = {
     saveWeightToMaster: "Gem også vægten i master-listen",
     editItemTitle: "Antal og vægt",
     editList: "Ret liste",
-    editListTitle: "Navn, noter og vægt",
+    editListTitle: "Listeindstillinger",
     notes: "Noter",
     notesPlaceholder: "Noter til listen, f.eks. hvad der skal købes inden turen",
     archive: "Arkivér liste",
@@ -323,13 +322,6 @@ const parseQuantity = (text) => {
 };
 const itemWeight = (item) => (item.weight || 0) * (item.quantity || 1);
 
-const loadPackedMode = () => {
-  try {
-    return localStorage.getItem(PACKED_MODE_KEY);
-  } catch {
-    return null;
-  }
-};
 
 const STYLE = `
   ha-card { padding: 16px; }
@@ -417,7 +409,6 @@ class PackingListCard extends HTMLElement {
     this._data = null;
     this._sig = null;
     this._listId = null;
-    this._packedMode = loadPackedMode();
     this._showNew = false;
     this._deleteMode = false;
     this._selected = new Set();
@@ -482,9 +473,6 @@ class PackingListCard extends HTMLElement {
   setConfig(config) {
     this._config = config || {};
     this._tab = this._config.default_tab || "pack";
-    if (!PACKED_MODES.includes(this._packedMode)) {
-      this._packedMode = this._config.packed_mode || "inline";
-    }
     if (this._data) this._render();
   }
 
@@ -969,6 +957,7 @@ class PackingListCard extends HTMLElement {
       ${f.lWeight ? this._renderLimitInput("lLimit", "save-list") : ""}
       <label class="check"><input type="checkbox" data-change="lQty" ${f.lQty ? "checked" : ""}>
         ${esc(this._t("quantityControls"))}</label>
+      ${this._renderPackedModeSelect("lPacked")}
       <div class="row"><button class="primary" data-action="save-list">${esc(this._t("save"))}</button>
         <button data-action="toggle-edit-list">${esc(this._t("cancel"))}</button></div>
     </div>`;
@@ -1025,6 +1014,7 @@ class PackingListCard extends HTMLElement {
       ${f.newWeight ? this._renderLimitInput("newLimit", "create-list") : ""}
       <label class="check"><input type="checkbox" data-change="newQty" ${f.newQty ? "checked" : ""}>
         ${esc(this._t("quantityControls"))}</label>
+      ${this._renderPackedModeSelect("newPacked")}
       <div class="row"><button class="primary" data-action="create-list">${esc(this._t("create"))}</button>
         <button data-action="toggle-new">${esc(this._t("cancel"))}</button></div>
     </div>`;
@@ -1143,7 +1133,7 @@ class PackingListCard extends HTMLElement {
 
   _renderPack(list) {
     // In delete mode everything is shown in its category, so any item can be selected.
-    const mode = this._deleteMode ? "inline" : this._packedMode;
+    const mode = this._deleteMode ? "inline" : this._packedModeFor(list);
     const packed = list.items.filter((i) => i.packed);
     const shown = mode === "inline" ? list.items : list.items.filter((i) => !i.packed);
     // Weight per category counts every item in it, also packed ones shown elsewhere.
@@ -1185,12 +1175,24 @@ class PackingListCard extends HTMLElement {
     ];
   }
 
-  _renderPackTools(list) {
+  // How packed items are shown: the card's `packed_mode` option wins, then the list's own setting,
+  // then the default from the integration's options.
+  _packedModeFor(list) {
+    const mode = this._config.packed_mode || list?.packed_mode || this._data?.settings?.packed_mode;
+    return PACKED_MODES.includes(mode) ? mode : "inline";
+  }
+
+  _renderPackedModeSelect(key) {
     const labels = { inline: "packedInline", bottom: "packedBottom", hide: "packedHide" };
-    const modes = PACKED_MODES.map(
+    const options = PACKED_MODES.map(
       (value) =>
-        `<option value="${value}" ${value === this._packedMode ? "selected" : ""}>${esc(this._t(labels[value]))}</option>`,
+        `<option value="${value}" ${value === this._form[key] ? "selected" : ""}>${esc(this._t(labels[value]))}</option>`,
     ).join("");
+    return `<label class="check">${esc(this._t("packedModeTitle"))}
+        <select data-input="${key}">${options}</select></label>`;
+  }
+
+  _renderPackTools(list) {
     const criteria = this._refreshCriteria(list);
     const refresh = criteria.length
       ? `<button data-action="refresh-list" title="${esc(this._t("refreshTitle", { criteria: criteria.join(", ") }))}">
@@ -1198,7 +1200,6 @@ class PackingListCard extends HTMLElement {
       : "";
     const packed = list.items.filter((i) => i.packed).length;
     return `<div class="row tools">
-        <select data-change="packedMode" title="${esc(this._t("packedModeTitle"))}">${modes}</select>
         <div class="row">
           ${refresh}
           ${list.items.length ? `<button data-action="delete-mode" title="${esc(this._t("deleteItemsTitle"))}"><ha-icon icon="mdi:delete-outline"></ha-icon> ${esc(this._t("deleteItems"))}</button>` : ""}
@@ -1335,14 +1336,6 @@ class PackingListCard extends HTMLElement {
         this._error = err.message || String(err);
         this._render();
       });
-    } else if (key === "packedMode") {
-      this._packedMode = ev.target.value;
-      try {
-        localStorage.setItem(PACKED_MODE_KEY, this._packedMode);
-      } catch {
-        // Not persisted (private mode etc.) – the choice still applies until reload.
-      }
-      this._render();
     } else if (key === "newAlways") {
       this._form.newAlways = ev.target.checked;
     } else if (key === "newWeight") {
@@ -1452,6 +1445,7 @@ class PackingListCard extends HTMLElement {
               newWeight: !!s.use_weight,
               newLimit: this._limitValue(s.weight_limit),
               newQty: !!s.quantity_controls,
+              newPacked: PACKED_MODES.includes(s.packed_mode) ? s.packed_mode : "inline",
             });
           }
           this._render();
@@ -1476,6 +1470,7 @@ class PackingListCard extends HTMLElement {
             use_weight: !!f.newWeight,
             weight_limit: f.newWeight ? parseLimit(f.newLimit) : null,
             quantity_controls: !!f.newQty,
+            packed_mode: f.newPacked || "inline",
           };
           const res = await this._callWithResponse("create_list", data);
           this._listId = res.list_id ?? this._listId;
@@ -1517,6 +1512,7 @@ class PackingListCard extends HTMLElement {
               lWeight: !!list.use_weight,
               lLimit: this._limitValue(list.weight_limit),
               lQty: !!list.quantity_controls,
+              lPacked: list.packed_mode || this._data?.settings?.packed_mode || "inline",
             });
           }
           this._focusPanel = this._showEditList ? "edit" : null;
@@ -1532,6 +1528,7 @@ class PackingListCard extends HTMLElement {
             notes: f.lNotes || "",
             use_weight: !!f.lWeight,
             quantity_controls: !!f.lQty,
+            packed_mode: f.lPacked || "inline",
           };
           if (f.lWeight) data.weight_limit = parseLimit(f.lLimit);
           const name = (f.lName || "").trim();

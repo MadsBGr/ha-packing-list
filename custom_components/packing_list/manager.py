@@ -203,6 +203,8 @@ class PackingList:
     weight_limit: float | None = None
     # Show −/+ buttons on the card to change quantities directly.
     quantity_controls: bool = False
+    # How packed items are shown: "inline", "bottom" or "hide"; None follows the default.
+    packed_mode: str | None = None
 
     @property
     def done(self) -> bool:
@@ -649,6 +651,7 @@ class PackingListManager:
         notes: str = "",
         weight_limit: float | None = None,
         quantity_controls: bool = False,
+        packed_mode: str | None = None,
     ) -> PackingList:
         """Create an empty trip list."""
         plist = PackingList(
@@ -658,6 +661,7 @@ class PackingListManager:
             notes=notes.strip(),
             weight_limit=_clean_weight(weight_limit),
             quantity_controls=quantity_controls,
+            packed_mode=packed_mode,
         )
         self.lists[plist.list_id] = plist
         self._changed(plist.list_id)
@@ -686,6 +690,7 @@ class PackingListManager:
             use_weight=source.use_weight,
             weight_limit=source.weight_limit,
             quantity_controls=source.quantity_controls,
+            packed_mode=source.packed_mode,
         )
         self.lists[plist.list_id] = plist
         self._changed(plist.list_id)
@@ -702,6 +707,7 @@ class PackingListManager:
         archived: bool | None = None,
         weight_limit: float | None = KEEP,
         quantity_controls: bool | None = None,
+        packed_mode: str | None = None,
     ) -> None:
         """Rename a trip list or change its notes, weight/quantity settings or archived state.
 
@@ -713,6 +719,8 @@ class PackingListManager:
             plist.weight_limit = _clean_weight(weight_limit)
         if quantity_controls is not None:
             plist.quantity_controls = quantity_controls
+        if packed_mode is not None:
+            plist.packed_mode = packed_mode
         if archived and self.active_list_id == list_id:
             self.active_list_id = None
         if name is not None and name.strip():

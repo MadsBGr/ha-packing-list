@@ -23,13 +23,16 @@ from homeassistant.helpers.dispatcher import async_dispatcher_send
 
 from .const import (
     CONF_INCLUDE_ALWAYS,
+    CONF_PACKED_MODE,
     CONF_QUANTITY_CONTROLS,
     CONF_USE_WEIGHT,
     CONF_WEIGHT_LIMIT,
+    DEFAULT_PACKED_MODE,
     DEFAULTS_NOTIFICATION_ID,
     DOMAIN,
     LIST_ENTITY_SUFFIXES,
     NAMES,
+    PACKED_MODES,
     SIGNAL_LIST_ADDED,
     UNIQUE_ID_LIST_PREFIX,
 )
@@ -52,6 +55,7 @@ ATTR_ARCHIVED = "archived"
 ATTR_SAVE_TO_MASTER = "save_to_master"
 ATTR_WEIGHT_LIMIT = "weight_limit"
 ATTR_QUANTITY_CONTROLS = "quantity_controls"
+ATTR_PACKED_MODE = "packed_mode"
 
 SERVICE_CREATE_LIST = "create_list"
 SERVICE_ADD_FROM_MASTER = "add_from_master"
@@ -107,6 +111,7 @@ CREATE_LIST_SCHEMA = vol.Schema(
         vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
         vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
         vol.Optional(ATTR_QUANTITY_CONTROLS): cv.boolean,
+        vol.Optional(ATTR_PACKED_MODE): vol.In(PACKED_MODES),
         vol.Optional(ATTR_NOTES, default=""): cv.string,
         **_SELECTION_SCHEMA,
     }
@@ -174,6 +179,7 @@ UPDATE_LIST_SCHEMA = vol.Schema(
         vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(min=1)),
         vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
         vol.Optional(ATTR_QUANTITY_CONTROLS): cv.boolean,
+        vol.Optional(ATTR_PACKED_MODE): vol.In(PACKED_MODES),
         vol.Optional(ATTR_NOTES): cv.string,
         vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
         vol.Optional(ATTR_ARCHIVED): cv.boolean,
@@ -337,6 +343,9 @@ def async_register_services(hass: HomeAssistant) -> None:
             quantity_controls=call.data.get(
                 ATTR_QUANTITY_CONTROLS, options.get(CONF_QUANTITY_CONTROLS, False)
             ),
+            packed_mode=call.data.get(
+                ATTR_PACKED_MODE, options.get(CONF_PACKED_MODE, DEFAULT_PACKED_MODE)
+            ),
         )
         added = manager.add_from_master(plist.list_id, **_selection(data))
         entity_id = await _async_add_list_entities(hass, plist.list_id)
@@ -491,6 +500,7 @@ def async_register_services(hass: HomeAssistant) -> None:
             name=call.data.get(ATTR_NAME),
             weight_limit=_optional(call.data, ATTR_WEIGHT_LIMIT),
             quantity_controls=call.data.get(ATTR_QUANTITY_CONTROLS),
+            packed_mode=call.data.get(ATTR_PACKED_MODE),
             notes=call.data.get(ATTR_NOTES),
             use_weight=call.data.get(ATTR_USE_WEIGHT),
             archived=call.data.get(ATTR_ARCHIVED),

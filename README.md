@@ -56,7 +56,7 @@ The card and all texts follow your Home Assistant language: Danish or English (E
 
 **At the top** you pick a list. The buttons next to the list picker:
 - **+ New list** creates a list.
-- **✏️** renames the list and edits its notes, weight setting, weight limit and quantity buttons.
+- **✏️ List settings:** name, notes, weight and weight limit, quantity buttons, and how packed items are shown.
 - **⧉** copies the list; this also works for archived lists.
 - **Archive / restore** moves the list to and from the archive.
 - **🗑** deletes the list.
@@ -64,7 +64,8 @@ The card and all texts follow your Home Assistant language: Danish or English (E
 **Pack**
 - Tap an item to mark it as packed.
 - With **quantity buttons** turned on for the list, − and + change the quantity right there.
-- Choose whether packed items stay in their category, move to the bottom or are hidden.
+- Packed items stay in their category, move to the bottom under **Packed**, or are hidden – set per list
+  under **✏️ List settings**.
 - **Fetch again** adds new master items that match the list's tags.
 - **Delete items** lets you select several items and delete them at once.
 - **Uncheck all** marks the whole list as not packed, e.g. for the trip home.
@@ -92,10 +93,11 @@ Under **Settings → Devices & services → Packing Lists → Configure** you ch
 - **Use weight**
 - **Show quantity buttons on the card** – − and + next to each item, so you can change quantities without
   opening the item
+- **How packed items are shown** – in their category, together at the bottom, or hidden
 - **Tags selected in advance** when you press "+ New list"
 - **Default weight limit** in kg, e.g. 23 for a suitcase or 8 for hand luggage
 
-These are only the starting point: every list can change them under **✏️ Name, notes and weight**.
+These are only the starting point: every list can change them under **✏️ List settings**.
 
 ## Use in the rest of Home Assistant
 
@@ -208,7 +210,7 @@ type: custom:packing-list-card
 title: Packing list        # optional heading
 entity: todo.ski_trip      # optional: always show this list (instead of the active one)
 default_tab: pack          # pack | pick | master
-packed_mode: bottom        # inline | bottom | hide (first time only – after that your choice is remembered)
+packed_mode: bottom        # inline | bottom | hide – overrides the list's own setting on this card
 ```
 </details>
 
@@ -232,8 +234,8 @@ The standard `todo.*` actions (`add_item`, `update_item`, `remove_item`, `get_it
 
 | Action | What it does |
 |---|---|
-| `packing_list.create_list` | Creates a list: `name`, optional `notes`, `tags`, `categories`, `items`, `include_always`, `use_weight`, `weight_limit` (grams) and `quantity_controls`. The last four use the integration's settings when left out. |
-| `packing_list.update_list` | Renames (`name`) or changes `notes`, `use_weight`, `weight_limit` (empty removes it), `quantity_controls` and `archived`. |
+| `packing_list.create_list` | Creates a list: `name`, optional `notes`, `tags`, `categories`, `items`, `include_always`, `use_weight`, `weight_limit` (grams), `quantity_controls` and `packed_mode` (`inline`, `bottom` or `hide`). The last five use the integration's settings when left out. |
+| `packing_list.update_list` | Renames (`name`) or changes `notes`, `use_weight`, `weight_limit` (empty removes it), `quantity_controls`, `packed_mode` and `archived`. |
 | `packing_list.copy_list` | Copies a list. Optional `name`; otherwise the copy is called "<name> (copy)". |
 | `packing_list.delete_list` | Deletes the list and its entities. |
 | `packing_list.set_active_list` | Makes the list `entity_id` the active one. Without `entity_id` the active list is cleared. |

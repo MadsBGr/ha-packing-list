@@ -1,11 +1,15 @@
 """Options (defaults for new lists), weight limit, active list, 'remaining' and 'done' entities."""
 
+import pytest
+import voluptuous as vol
+
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
 from custom_components.packing_list.const import (
     CONF_DEFAULT_TAGS,
     CONF_INCLUDE_ALWAYS,
+    CONF_PACKED_MODE,
     CONF_QUANTITY_CONTROLS,
     CONF_USE_WEIGHT,
     CONF_WEIGHT_LIMIT,
@@ -39,6 +43,7 @@ async def test_options_flow_defaults(hass: HomeAssistant, setup_entry, hass_ws_c
             CONF_INCLUDE_ALWAYS: False,
             CONF_USE_WEIGHT: True,
             CONF_QUANTITY_CONTROLS: True,
+            CONF_PACKED_MODE: "bottom",
             CONF_DEFAULT_TAGS: ["fly"],
             CONF_WEIGHT_LIMIT: 23,
         },
@@ -53,12 +58,14 @@ async def test_options_flow_defaults(hass: HomeAssistant, setup_entry, hass_ws_c
         "default_tags": ["fly"],
         "weight_limit": 23000,
         "quantity_controls": True,
+        "packed_mode": "bottom",
     }
 
     # create_list without those fields uses the defaults (default tags are only pre-selected in the card).
     entity_id = (await _create(hass, name="Tur", items=["Pas"]))["entity_id"]
     (plist,) = (await _data(hass, hass_ws_client))["lists"]
     assert (plist["use_weight"], plist["weight_limit"], plist["quantity_controls"]) == (True, 23000, True)
+    assert plist["packed_mode"] == "bottom"
     assert [i["summary"] for i in await _items(hass, entity_id)] == ["Pas"]  # no #altid items
 
     # Explicit values win.
@@ -79,6 +86,20 @@ async def test_quantity_controls_per_list(hass: HomeAssistant, setup_entry, hass
     assert lists["Tur"]["quantity_controls"] is True
     assert lists["Tur 2"]["quantity_controls"] is True
     assert lists["Tur 2"]["items"][0]["quantity"] == 4
+
+
+async def test_packed_mode_per_list(hass: HomeAssistant, setup_entry, hass_ws_client) -> None:
+    entity_id = (await _create(hass, name="Tur", include_always=False))["entity_id"]
+    (plist,) = (await _data(hass, hass_ws_client))["lists"]
+    assert plist["packed_mode"] == "inline"  # the default without options
+
+    await _call(hass, "update_list", {"entity_id": entity_id, "packed_mode": "hide"})
+    await _call(hass, "copy_list", {"entity_id": entity_id, "name": "Tur 2"})
+    lists = {p["name"]: p for p in (await _data(hass, hass_ws_client))["lists"]}
+    assert lists["Tur"]["packed_mode"] == lists["Tur 2"]["packed_mode"] == "hide"
+
+    with pytest.raises(vol.Invalid):
+        await _call(hass, "update_list", {"entity_id": entity_id, "packed_mode": "sideways"})
 
 
 async def test_weight_limit(hass: HomeAssistant, setup_entry) -> None:
