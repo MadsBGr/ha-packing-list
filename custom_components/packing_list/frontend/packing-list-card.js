@@ -10,13 +10,19 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide – overrides the list's own setting
  */
 
-const CARD_VERSION = "1.2.0";
+const CARD_VERSION = "1.3.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODES = ["inline", "bottom", "hide"];
 // Items without a category are grouped under this key (shown as "Andet"/"Other").
 const UNCATEGORIZED = "";
 // Tags meaning "include in every new list"; both work in every language.
 const ALWAYS_TAGS = ["altid", "always"];
+// Card actions that change the selected list; ignored while it is archived.
+const LIST_EDIT_ACTIONS = new Set([
+  "toggle-edit-list", "save-list", "toggle-packed", "qty-inc", "qty-dec", "reset-list", "add-extra",
+  "toggle-extra-details", "open-to-master", "save-to-master", "edit-item", "save-edit-item", "refresh-list",
+  "delete-mode", "toggle-select", "select-all", "delete-selected", "pick-toggle", "pick-tag", "pick-category",
+]);
 
 const STRINGS = {
   en: {
@@ -131,7 +137,12 @@ const STRINGS = {
     archive: "Archive list",
     unarchive: "Restore from archive",
     archivedHeading: "Archived",
-    archivedNotice: "This list is archived.",
+    archivedNotice: "This list is archived – only the notes can be changed.",
+    archivedReadOnly: "This list is archived and can't be changed. Restore it from the archive to change it.",
+    saveNotes: "Save notes",
+    notesSaved: "Notes saved",
+    editNotes: "Click to edit the notes",
+    addNotes: "Add notes …",
     listName: "List name",
     quantityControls: "Show quantity buttons on the card",
     fewer: "Fewer",
@@ -267,7 +278,12 @@ const STRINGS = {
     archive: "Arkivér liste",
     unarchive: "Hent tilbage fra arkivet",
     archivedHeading: "Arkiverede",
-    archivedNotice: "Listen er arkiveret.",
+    archivedNotice: "Listen er arkiveret – kun noterne kan ændres.",
+    archivedReadOnly: "Listen er arkiveret og kan ikke ændres. Hent den tilbage fra arkivet for at ændre den.",
+    saveNotes: "Gem noter",
+    notesSaved: "Noter gemt",
+    editNotes: "Klik for at rette noterne",
+    addNotes: "Tilføj noter …",
     listName: "Listens navn",
     quantityControls: "Vis antal-knapper på kortet",
     fewer: "Færre",
@@ -928,22 +944,45 @@ class PackingListCard extends HTMLElement {
     }
     const icon = (action, iconName, title, cls = "") =>
       `<button class="icon ${cls}" data-action="${action}" title="${esc(this._t(title))}"><ha-icon icon="${iconName}"></ha-icon></button>`;
+    // An archived list can only be copied, restored or deleted (and its notes edited, below).
     const listButtons = list
-      ? icon("toggle-edit-list", "mdi:pencil-outline", "editListTitle", this._showEditList ? "active" : "") +
+      ? (list.archived
+          ? ""
+          : icon("toggle-edit-list", "mdi:pencil-outline", "editListTitle", this._showEditList ? "active" : "")) +
         icon("toggle-copy-list", "mdi:content-copy", "copyList", this._showCopyList ? "active" : "") +
         (list.archived
           ? icon("unarchive-list", "mdi:archive-arrow-up-outline", "unarchive")
           : icon("archive-list", "mdi:archive-arrow-down-outline", "archive")) +
         icon("delete-list", "mdi:delete-outline", "deleteList")
       : "";
-    const archivedNotice = list?.archived
-      ? `<div class="panel archived row tools"><span>${esc(this._t("archivedNotice"))}</span>
-          <button data-action="unarchive-list"><ha-icon icon="mdi:archive-arrow-up-outline"></ha-icon> ${esc(this._t("unarchive"))}</button></div>`
-      : "";
+    const archivedNotice = list?.archived ? this._renderArchivedPanel(list) : "";
     return `<div class="row header">${select}
         <button data-action="toggle-new" class="${this._showNew ? "active" : ""}">${esc(this._t("newList"))}</button>
         ${listButtons}
       </div>${this._renderDialog("header")}${archivedNotice}${progress}`;
+  }
+
+  // For an archived list: a restore button and the notes – the only thing that can change. The notes
+  // are shown as text; clicking them opens an edit box.
+  _renderArchivedPanel(list) {
+    const f = this._form;
+    if (this._archivedNotesFor !== list.list_id) {
+      this._archivedNotesFor = list.list_id;
+      this._editArchivedNotes = false;
+      this._archivedNotice = null;
+    }
+    const notes = this._editArchivedNotes
+      ? `<textarea data-input="aNotes" data-enter="save-archived-notes" rows="3" data-autofocus
+            placeholder="${esc(this._t("notesPlaceholder"))}">${esc(f.aNotes)}</textarea>
+          <div class="row"><button class="primary" data-action="save-archived-notes">${esc(this._t("saveNotes"))}</button>
+            <button data-action="cancel-archived-notes">${esc(this._t("cancel"))}</button></div>`
+      : `<div class="notesbox ${list.notes ? "" : "muted"}" data-action="edit-archived-notes" title="${esc(this._t("editNotes"))}">${esc(list.notes || this._t("addNotes"))}</div>
+          ${this._archivedNotice ? `<span class="notice">${esc(this._archivedNotice)}</span>` : ""}`;
+    return `<div class="panel archived">
+        <div class="row tools"><span>${esc(this._t("archivedNotice"))}</span>
+          <button data-action="unarchive-list"><ha-icon icon="mdi:archive-arrow-up-outline"></ha-icon> ${esc(this._t("unarchive"))}</button></div>
+        ${notes}
+      </div>`;
   }
 
   _renderEditList(list) {
@@ -1055,6 +1094,10 @@ class PackingListCard extends HTMLElement {
     const notes = item.notes ? `<span class="notes">${esc(item.notes)}</span>` : "";
     const name = `<span class="name">${this._qty(item)}${esc(item.summary)}${notes}</span>`;
     const weight = list.use_weight ? this._weightLabel(item) : "";
+    if (list.archived) {
+      // Read-only: no checking off, quantity buttons or item actions.
+      return `<div class="item ${item.packed ? "done" : ""}">${this._checkbox(item.packed)}${name}${weight}</div>`;
+    }
     if (this._deleteMode) {
       const on = this._selected.has(item.uid);
       return `<div class="item ${on ? "selected" : ""}" data-action="toggle-select" data-uid="${esc(item.uid)}">
@@ -1157,6 +1200,8 @@ class PackingListCard extends HTMLElement {
         [...packed].sort((a, b) => this._byName(a, b)).map((i) => this._packRow(i, list)).join("");
     }
     const empty = this._t(list.items.length ? "allPacked" : "listEmpty");
+    // Archived: read-only items; the notes are edited in the archived panel at the top.
+    if (list.archived) return groups || `<div class="empty">${esc(this._t("listEmpty"))}</div>`;
     const notes = list.notes && !this._showEditList
       ? `<div class="panel notesbox" data-action="toggle-edit-list" title="${esc(this._t("editListTitle"))}">${esc(list.notes)}</div>`
       : "";
@@ -1236,6 +1281,7 @@ class PackingListCard extends HTMLElement {
   }
 
   _renderPick(list) {
+    if (list.archived) return `<div class="empty">${esc(this._t("archivedReadOnly"))}</div>`;
     const excluded = new Set(list.excluded || []);
     const chips = this._allTags()
       .map((t) => `<button class="chip" data-action="pick-tag" data-tag="${esc(t)}">+ #${esc(t)}</button>`)
@@ -1415,8 +1461,31 @@ class PackingListCard extends HTMLElement {
   async _action(action, el) {
     const list = this._list;
     const f = this._form;
+    // An archived list can't be changed – only its notes (save-archived-notes) and copy/restore/delete.
+    if (list?.archived && LIST_EDIT_ACTIONS.has(action)) return;
     try {
       switch (action) {
+        case "edit-archived-notes":
+          if (!list) return;
+          f.aNotes = list.notes || "";
+          this._editArchivedNotes = true;
+          this._archivedNotice = null;
+          this._render();
+          break;
+        case "cancel-archived-notes":
+          this._editArchivedNotes = false;
+          this._render();
+          break;
+        case "save-archived-notes": {
+          if (!list) return;
+          const notes = (f.aNotes || "").trim();
+          this._editArchivedNotes = false;
+          list.notes = notes; // show it right away; the server confirms with the next refresh
+          this._archivedNotice = this._t("notesSaved");
+          this._render();
+          await this._call("packing_list", "update_list", { entity_id: list.entity_id, notes });
+          break;
+        }
         case "tab":
           this._tab = el.dataset.tab;
           this._notice = null;

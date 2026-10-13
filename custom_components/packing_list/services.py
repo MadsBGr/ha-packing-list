@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from functools import wraps
 from typing import Any
 
 import voluptuous as vol
@@ -36,7 +37,13 @@ from .const import (
     SIGNAL_LIST_ADDED,
     UNIQUE_ID_LIST_PREFIX,
 )
-from .manager import KEEP, AmbiguousItemError, DuplicateItemError, PackingListManager
+from .manager import (
+    KEEP,
+    AmbiguousItemError,
+    ArchivedListError,
+    DuplicateItemError,
+    PackingListManager,
+)
 
 ATTR_TAGS = "tags"
 ATTR_CATEGORY = "category"
@@ -227,6 +234,11 @@ def _error(key: str, **placeholders: str) -> ServiceValidationError:
     )
 
 
+def archived_error(err: ArchivedListError) -> ServiceValidationError:
+    """The translated error for trying to change an archived list."""
+    return _error("list_archived", name=str(err))
+
+
 def get_manager(hass: HomeAssistant) -> PackingListManager:
     """Return the manager of the loaded config entry."""
     for entry in hass.config_entries.async_entries(DOMAIN):
@@ -326,6 +338,18 @@ def _selection(data: dict[str, Any]) -> dict[str, Any]:
 @callback
 def async_register_services(hass: HomeAssistant) -> None:
     """Register the integration's services."""
+
+    def _register(domain: str, service: str, handler, **kwargs) -> None:
+        """Register a service; changing an archived list gives a translated error."""
+
+        @wraps(handler)
+        async def guarded(call: ServiceCall) -> ServiceResponse:
+            try:
+                return await handler(call)
+            except ArchivedListError as err:
+                raise archived_error(err) from None
+
+        hass.services.async_register(domain, service, guarded, **kwargs)
 
     async def create_list(call: ServiceCall) -> ServiceResponse:
         manager = get_manager(hass)
@@ -430,30 +454,30 @@ def async_register_services(hass: HomeAssistant) -> None:
         except DuplicateItemError as err:
             raise _error("duplicate_item", item=str(err)) from None
 
-    hass.services.async_register(
+    _register(
         DOMAIN,
         SERVICE_CREATE_LIST,
         create_list,
         schema=CREATE_LIST_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    _register(
         DOMAIN,
         SERVICE_ADD_FROM_MASTER,
         add_from_master,
         schema=ADD_FROM_MASTER_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(DOMAIN, SERVICE_RESET_LIST, reset_list, schema=LIST_SCHEMA)
-    hass.services.async_register(DOMAIN, SERVICE_DELETE_LIST, delete_list, schema=LIST_SCHEMA)
-    hass.services.async_register(
+    _register(DOMAIN, SERVICE_RESET_LIST, reset_list, schema=LIST_SCHEMA)
+    _register(DOMAIN, SERVICE_DELETE_LIST, delete_list, schema=LIST_SCHEMA)
+    _register(
         DOMAIN,
         SERVICE_ADD_MASTER_ITEMS,
         add_master_items,
         schema=ADD_MASTER_ITEMS_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    _register(
         DOMAIN,
         SERVICE_UPDATE_MASTER_ITEM,
         update_master_item,
@@ -465,7 +489,7 @@ def async_register_services(hass: HomeAssistant) -> None:
         manager.reset_master()
         async_update_defaults_notification(hass, manager)
 
-    hass.services.async_register(
+    _register(
         DOMAIN, SERVICE_RESET_MASTER, reset_master, schema=vol.Schema({})
     )
 
@@ -530,50 +554,50 @@ def async_register_services(hass: HomeAssistant) -> None:
         )
         return {"master_uid": master_item.uid}
 
-    hass.services.async_register(
+    _register(
         DOMAIN,
         SERVICE_REFRESH_LIST,
         refresh_list,
         schema=REFRESH_LIST_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    _register(
         DOMAIN,
         SERVICE_ADD_LIST_ITEM,
         add_list_item,
         schema=ADD_LIST_ITEM_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    _register(
         DOMAIN,
         SERVICE_COPY_TO_MASTER,
         copy_to_master,
         schema=COPY_TO_MASTER_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    _register(
         DOMAIN, SERVICE_UPDATE_LIST, update_list, schema=UPDATE_LIST_SCHEMA
     )
-    hass.services.async_register(
+    _register(
         DOMAIN, SERVICE_UPDATE_LIST_ITEM, update_list_item, schema=UPDATE_LIST_ITEM_SCHEMA
     )
-    hass.services.async_register(
+    _register(
         DOMAIN,
         SERVICE_COPY_LIST,
         copy_list,
         schema=COPY_LIST_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    _register(
         DOMAIN,
         SERVICE_ADD_NEW_DEFAULTS,
         add_new_defaults,
         schema=NEW_DEFAULTS_SCHEMA,
         supports_response=SupportsResponse.OPTIONAL,
     )
-    hass.services.async_register(
+    _register(
         DOMAIN, SERVICE_SKIP_NEW_DEFAULTS, skip_new_defaults, schema=NEW_DEFAULTS_SCHEMA
     )
-    hass.services.async_register(
+    _register(
         DOMAIN, SERVICE_SET_ACTIVE_LIST, set_active_list, schema=SET_ACTIVE_LIST_SCHEMA
     )

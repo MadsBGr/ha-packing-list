@@ -370,6 +370,9 @@
     },
     "duplicate_item": {
       "message": "Der findes allerede et punkt med navnet {item} i den kategori."
+    },
+    "list_archived": {
+      "message": "Pakkelisten \"{name}\" er arkiveret. Kun noterne kan ændres – hent listen tilbage fra arkivet for at ændre resten."
     }
   },
   "options": {

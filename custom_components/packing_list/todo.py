@@ -26,8 +26,8 @@ from .const import (
     UNIQUE_ID_MASTER,
     VERSION,
 )
-from .manager import PackingListManager
-from .services import async_remove_list_entities
+from .manager import ArchivedListError, PackingListManager
+from .services import archived_error, async_remove_list_entities
 
 
 async def async_setup_entry(
@@ -119,8 +119,16 @@ class _PackingTodoEntity(TodoListEntity):
             "version": VERSION,
         }
 
+    def _ensure_editable(self) -> None:
+        """Archived lists can't be changed from the to-do view either."""
+        try:
+            self._manager.ensure_editable(self._key)
+        except ArchivedListError as err:
+            raise archived_error(err) from None
+
     async def async_create_todo_item(self, item: TodoItem) -> None:
         """Add an item."""
+        self._ensure_editable()
         self._manager.create_item(
             self._key,
             item.summary or "",
@@ -130,6 +138,7 @@ class _PackingTodoEntity(TodoListEntity):
 
     async def async_update_todo_item(self, item: TodoItem) -> None:
         """Update an item."""
+        self._ensure_editable()
         self._manager.update_item(
             self._key,
             item.uid or "",
@@ -140,10 +149,12 @@ class _PackingTodoEntity(TodoListEntity):
 
     async def async_delete_todo_items(self, uids: list[str]) -> None:
         """Delete items."""
+        self._ensure_editable()
         self._manager.delete_items(self._key, uids)
 
     async def async_move_todo_item(self, uid: str, previous_uid: str | None = None) -> None:
         """Reorder an item."""
+        self._ensure_editable()
         self._manager.move_item(self._key, uid, previous_uid)
 
 

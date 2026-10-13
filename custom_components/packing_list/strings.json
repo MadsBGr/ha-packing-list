@@ -370,6 +370,9 @@
     },
     "duplicate_item": {
       "message": "There is already an item named {item} in that category."
+    },
+    "list_archived": {
+      "message": "The packing list \"{name}\" is archived. Only its notes can be changed – restore it from the archive to change the rest."
     }
   },
   "options": {

@@ -58,7 +58,8 @@ The card and all texts follow your Home Assistant language: Danish or English (E
 - **+ New list** creates a list.
 - **✏️ List settings:** name, notes, weight and weight limit, quantity buttons, and how packed items are shown.
 - **⧉** copies the list; this also works for archived lists.
-- **Archive / restore** moves the list to and from the archive.
+- **Archive / restore** moves the list to and from the archive. An archived list is **read-only** –
+  only its notes can be changed (click them to edit). Copy it, or restore it, to change the rest.
 - **🗑** deletes the list.
 
 **Pack**

@@ -237,6 +237,50 @@ test("follows the active list and makes a picked list active", async () => {
   assert.deepEqual(call.data, { entity_id: "todo.strand" });
 });
 
+test("an archived list is read-only, but its notes can be edited", async () => {
+  const data = baseData();
+  data.lists[0] = list("ski", "Ski", {
+    archived: true,
+    notes: "Husk liftkort",
+    quantity_controls: true,
+    items: [item("a", "Pas", "Dokumenter"), item("b", "Ski", "Udstyr", { packed: true })],
+  });
+  const card = await makeCard({ data });
+
+  // No editing controls, only copy / restore / delete.
+  for (const action of ["toggle-edit-list", "toggle-packed", "qty-inc", "edit-item", "delete-mode", "reset-list", "add-extra"]) {
+    assert.equal(card.$(`[data-action="${action}"]`), null, action);
+  }
+  for (const action of ["toggle-copy-list", "unarchive-list", "delete-list"]) {
+    assert.ok(card.$(`[data-action="${action}"]`), action);
+  }
+  assert.deepEqual(card.$$(".item .name").map((e) => e.textContent.trim()), ["Pas", "Ski"]);
+
+  // The notes are shown as text; clicking them opens an edit box.
+  assert.equal(card.$('textarea[data-input="aNotes"]'), null);
+  assert.equal(card.$('[data-action="edit-archived-notes"]').textContent.trim(), "Husk liftkort");
+  card.$('[data-action="edit-archived-notes"]').click();
+  await tick();
+  const notes = card.$('textarea[data-input="aNotes"]');
+  assert.equal(notes.value, "Husk liftkort");
+  notes.value = "Husk liftkort og pas";
+  notes.dispatchEvent(new Event("input", { bubbles: true }));
+  card.$('[data-action="save-archived-notes"]').click();
+  await tick();
+  const call = card.calls.find((c) => c.service === "update_list");
+  assert.deepEqual(call.data, { entity_id: "todo.ski", notes: "Husk liftkort og pas" });
+  assert.equal(card.$('textarea[data-input="aNotes"]'), null);
+  assert.equal(card.$('[data-action="edit-archived-notes"]').textContent.trim(), "Husk liftkort og pas");
+  assert.match(card.text(), /Noter gemt/);
+
+  // Clicking an item does nothing; the pick tab says the list is archived.
+  card.$(".item").click();
+  card.$('[data-action="tab"][data-tab="pick"]').click();
+  await tick();
+  assert.match(card.text(), /arkiveret og kan ikke ændres/);
+  assert.equal(card.calls.filter((c) => c.service && c.service !== "update_list").length, 0);
+});
+
 test("warns when a list is over its weight limit", async () => {
   const data = baseData();
   data.lists[0] = list("ski", "Ski", {

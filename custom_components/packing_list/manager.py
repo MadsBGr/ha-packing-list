@@ -41,6 +41,10 @@ class AmbiguousItemError(KeyError):
     """Several master items have that name (in different categories)."""
 
 
+class ArchivedListError(ValueError):
+    """An archived list can't be changed (except its notes)."""
+
+
 def normalize_tag(tag: str) -> str:
     """Normalize a tag: strip whitespace and a leading '#', lowercase."""
     return tag.strip().lstrip("#").strip().lower()
@@ -360,6 +364,12 @@ class PackingListManager:
         plist = self.lists.get(key)
         return plist.items if plist else []
 
+    def ensure_editable(self, key: str) -> None:
+        """Raise ArchivedListError if key is an archived trip list."""
+        plist = self.lists.get(key)
+        if plist is not None and plist.archived:
+            raise ArchivedListError(plist.name)
+
     def _find(self, key: str, uid: str) -> PackingItem:
         for item in self.items_for(key):
             if item.uid == uid:
@@ -393,6 +403,7 @@ class PackingListManager:
         self, key: str, summary: str, description: str = "", packed: bool = False
     ) -> PackingItem:
         """Add a new item to the master list or a trip list."""
+        self.ensure_editable(key)
         item = PackingItem(
             uid=_new_uid(),
             summary=summary.strip(),
@@ -477,12 +488,17 @@ class PackingListManager:
         tags: Iterable[str],
         weight: float | None = KEEP,
     ) -> None:
-        """Set category/tags (and weight) of a master item and of its copies on trip lists."""
+        """Set category/tags (and weight) of a master item and of its copies on trip lists.
+
+        Archived lists are left as they are.
+        """
         tags = list(tags)
         item.description = build_description(category, tags, parse_description(item.description)[2])
         if weight is not KEEP:
             item.weight = weight
         for plist in self.lists.values():
+            if plist.archived:
+                continue
             touched = False
             for list_item in plist.items:
                 if list_item.master_uid == item.uid:
@@ -607,6 +623,7 @@ class PackingListManager:
         self, key: str, uid: str, summary: str, description: str, packed: bool
     ) -> None:
         """Update an item. The master list never stores a packed state."""
+        self.ensure_editable(key)
         item = self._find(key, uid)
         item.summary = summary.strip()
         item.description = description.strip()
@@ -620,6 +637,7 @@ class PackingListManager:
         On a trip list the master items behind deleted items are remembered,
         so "fetch again" won't bring them back.
         """
+        self.ensure_editable(key)
         remove = set(uids)
         items = self.items_for(key)
         if plist := self.lists.get(key):
@@ -631,6 +649,7 @@ class PackingListManager:
     @callback
     def move_item(self, key: str, uid: str, previous_uid: str | None) -> None:
         """Move an item to just after previous_uid (or first if None)."""
+        self.ensure_editable(key)
         items = self.items_for(key)
         item = self._find(key, uid)
         items.remove(item)
@@ -712,9 +731,19 @@ class PackingListManager:
         """Rename a trip list or change its notes, weight/quantity settings or archived state.
 
         ``None`` keeps a value; for ``weight_limit`` ``None`` clears it. An
-        archived list stops being the active list.
+        archived list stops being the active list. While a list stays archived
+        only its notes can change; restoring it (archived=False) lifts that.
         """
         plist = self.lists[list_id]
+        changes_settings = (
+            name is not None
+            or use_weight is not None
+            or weight_limit is not KEEP
+            or quantity_controls is not None
+            or packed_mode is not None
+        )
+        if plist.archived and archived is not False and changes_settings:
+            raise ArchivedListError(plist.name)
         if weight_limit is not KEEP:
             plist.weight_limit = _clean_weight(weight_limit)
         if quantity_controls is not None:
@@ -748,6 +777,7 @@ class PackingListManager:
         With ``to_master`` a new weight is also saved on the linked master
         item, and from there on every list that has it.
         """
+        self.ensure_editable(list_id)
         item = self._find(list_id, uid)
         if quantity is not KEEP:
             item.quantity = _clean_quantity(quantity)
@@ -771,6 +801,7 @@ class PackingListManager:
     @callback
     def reset_list(self, list_id: str) -> None:
         """Mark every item on a trip list as not packed."""
+        self.ensure_editable(list_id)
         for item in self.lists[list_id].items:
             item.packed = False
         self._changed(list_id)
@@ -795,6 +826,7 @@ class PackingListManager:
         before, unless ``include_excluded`` is set. The tags and categories
         are remembered for refresh_list. Returns the number of items added.
         """
+        self.ensure_editable(list_id)
         plist = self.lists[list_id]
         wanted_refs = {ref.strip().casefold() for ref in items}
         wanted_tags = {normalize_tag(tag) for tag in tags} - {""}
@@ -872,6 +904,7 @@ class PackingListManager:
         to_master: bool = False,
     ) -> PackingItem:
         """Add an item to a trip list, optionally also saving it on the master list."""
+        self.ensure_editable(list_id)
         item = PackingItem(
             uid=_new_uid(),
             summary=summary.strip(),
@@ -901,6 +934,7 @@ class PackingListManager:
         new tags (and the weight if it has none) instead of a duplicate being
         created. The same name in another category is a separate item.
         """
+        self.ensure_editable(list_id)
         plist = self.lists[list_id]
         list_item = self._find(list_id, uid)
         own_category, own_tags, notes = parse_description(list_item.description)
