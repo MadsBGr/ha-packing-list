@@ -35,6 +35,9 @@ create_list:
           step: 100
           unit_of_measurement: g
           mode: box
+    quantity_controls:
+      selector:
+        boolean:
     notes:
       selector:
         text:
@@ -285,6 +288,9 @@ update_list:
       example: "Skiferie 2028"
       selector:
         text:
+    quantity_controls:
+      selector:
+        boolean:
     notes:
       selector:
         text:

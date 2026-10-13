@@ -6,6 +6,7 @@ from homeassistant.helpers import entity_registry as er
 from custom_components.packing_list.const import (
     CONF_DEFAULT_TAGS,
     CONF_INCLUDE_ALWAYS,
+    CONF_QUANTITY_CONTROLS,
     CONF_USE_WEIGHT,
     CONF_WEIGHT_LIMIT,
     DOMAIN,
@@ -34,24 +35,50 @@ async def test_options_flow_defaults(hass: HomeAssistant, setup_entry, hass_ws_c
     assert result["step_id"] == "init"
     result = await hass.config_entries.options.async_configure(
         result["flow_id"],
-        {CONF_INCLUDE_ALWAYS: False, CONF_USE_WEIGHT: True, CONF_DEFAULT_TAGS: ["fly"], CONF_WEIGHT_LIMIT: 23},
+        {
+            CONF_INCLUDE_ALWAYS: False,
+            CONF_USE_WEIGHT: True,
+            CONF_QUANTITY_CONTROLS: True,
+            CONF_DEFAULT_TAGS: ["fly"],
+            CONF_WEIGHT_LIMIT: 23,
+        },
     )
     await hass.async_block_till_done()
     assert setup_entry.options[CONF_WEIGHT_LIMIT] == 23
 
     settings = (await _data(hass, hass_ws_client))["settings"]
-    assert settings == {"include_always": False, "use_weight": True, "default_tags": ["fly"], "weight_limit": 23000}
+    assert settings == {
+        "include_always": False,
+        "use_weight": True,
+        "default_tags": ["fly"],
+        "weight_limit": 23000,
+        "quantity_controls": True,
+    }
 
     # create_list without those fields uses the defaults (default tags are only pre-selected in the card).
     entity_id = (await _create(hass, name="Tur", items=["Pas"]))["entity_id"]
     (plist,) = (await _data(hass, hass_ws_client))["lists"]
-    assert (plist["use_weight"], plist["weight_limit"]) == (True, 23000)
+    assert (plist["use_weight"], plist["weight_limit"], plist["quantity_controls"]) == (True, 23000, True)
     assert [i["summary"] for i in await _items(hass, entity_id)] == ["Pas"]  # no #altid items
 
     # Explicit values win.
     await _create(hass, name="Tur 2", include_always=True, use_weight=False)
     plist = next(p for p in (await _data(hass, hass_ws_client))["lists"] if p["name"] == "Tur 2")
     assert plist["use_weight"] is False and len(plist["items"]) > 0
+
+
+async def test_quantity_controls_per_list(hass: HomeAssistant, setup_entry, hass_ws_client) -> None:
+    entity_id = (await _create(hass, name="Tur", items=["Strømper"], include_always=False))["entity_id"]
+    (plist,) = (await _data(hass, hass_ws_client))["lists"]
+    assert plist["quantity_controls"] is False  # default without options
+
+    await _call(hass, "update_list", {"entity_id": entity_id, "quantity_controls": True})
+    await _call(hass, "update_list_item", {"entity_id": entity_id, "item": "Strømper", "quantity": 4})
+    await _call(hass, "copy_list", {"entity_id": entity_id, "name": "Tur 2"})
+    lists = {p["name"]: p for p in (await _data(hass, hass_ws_client))["lists"]}
+    assert lists["Tur"]["quantity_controls"] is True
+    assert lists["Tur 2"]["quantity_controls"] is True
+    assert lists["Tur 2"]["items"][0]["quantity"] == 4
 
 
 async def test_weight_limit(hass: HomeAssistant, setup_entry) -> None:

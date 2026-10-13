@@ -56,13 +56,14 @@ The card and all texts follow your Home Assistant language: Danish or English (E
 
 **At the top** you pick a list. The buttons next to the list picker:
 - **+ New list** creates a list.
-- **✏️** renames the list and edits its notes, weight setting and weight limit.
+- **✏️** renames the list and edits its notes, weight setting, weight limit and quantity buttons.
 - **⧉** copies the list; this also works for archived lists.
 - **Archive / restore** moves the list to and from the archive.
 - **🗑** deletes the list.
 
 **Pack**
 - Tap an item to mark it as packed.
+- With **quantity buttons** turned on for the list, − and + change the quantity right there.
 - Choose whether packed items stay in their category, move to the bottom or are hidden.
 - **Fetch again** adds new master items that match the list's tags.
 - **Delete items** lets you select several items and delete them at once.
@@ -89,10 +90,12 @@ Under **Settings → Devices & services → Packing Lists → Configure** you ch
 
 - **Include items tagged #always**
 - **Use weight**
+- **Show quantity buttons on the card** – − and + next to each item, so you can change quantities without
+  opening the item
 - **Tags selected in advance** when you press "+ New list"
-- **Weight limit** in kg, e.g. 23 for a suitcase or 8 for hand luggage
+- **Default weight limit** in kg, e.g. 23 for a suitcase or 8 for hand luggage
 
-You can always change these for a single list.
+These are only the starting point: every list can change them under **✏️ Name, notes and weight**.
 
 ## Use in the rest of Home Assistant
 
@@ -143,7 +146,7 @@ already exists in another category, the card asks whether to move it, create a n
 <details><summary><b>Quantity, weight and weight limit</b></summary>
 
 - **Quantity** is optional and shown as "5× Socks". The quantity on a master item is the default when the
-  item is added to a list.
+  item is added to a list. Turn on **quantity buttons** to change it with − and + directly on the card.
 - **Weight** is in grams per piece; you can also type `1.2 kg`. Turn on **Use weight** on a list to see the
   weight per item, per category and in total.
 - **Weight limit:** a list that uses weight can have a limit in kg. The card shows the limit next to the
@@ -229,8 +232,8 @@ The standard `todo.*` actions (`add_item`, `update_item`, `remove_item`, `get_it
 
 | Action | What it does |
 |---|---|
-| `packing_list.create_list` | Creates a list: `name`, optional `notes`, `tags`, `categories`, `items`, `include_always`, `use_weight` and `weight_limit` (grams). The last three use the integration's settings when left out. |
-| `packing_list.update_list` | Renames (`name`) or changes `notes`, `use_weight`, `weight_limit` (empty removes it) and `archived`. |
+| `packing_list.create_list` | Creates a list: `name`, optional `notes`, `tags`, `categories`, `items`, `include_always`, `use_weight`, `weight_limit` (grams) and `quantity_controls`. The last four use the integration's settings when left out. |
+| `packing_list.update_list` | Renames (`name`) or changes `notes`, `use_weight`, `weight_limit` (empty removes it), `quantity_controls` and `archived`. |
 | `packing_list.copy_list` | Copies a list. Optional `name`; otherwise the copy is called "<name> (copy)". |
 | `packing_list.delete_list` | Deletes the list and its entities. |
 | `packing_list.set_active_list` | Makes the list `entity_id` the active one. Without `entity_id` the active list is cleared. |

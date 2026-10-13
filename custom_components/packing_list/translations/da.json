@@ -48,7 +48,11 @@
         },
         "weight_limit": {
           "name": "Vægtgrænse",
-          "description": "Største samlede vægt i gram (0 eller tom fjerner grænsen)."
+          "description": "Største samlede vægt i gram (0 eller tom fjerner grænsen). Udeladt = integrationens standard-vægtgrænse."
+        },
+        "quantity_controls": {
+          "name": "Antal-knapper på kortet",
+          "description": "Vis − og + ved hvert punkt, så antallet kan ændres direkte på kortet. Udeladt = integrationens standard."
         }
       }
     },
@@ -259,6 +263,10 @@
         "weight_limit": {
           "name": "Vægtgrænse",
           "description": "Største samlede vægt i gram (0 eller tom fjerner grænsen)."
+        },
+        "quantity_controls": {
+          "name": "Antal-knapper på kortet",
+          "description": "Vis − og + ved hvert punkt, så antallet kan ændres direkte på kortet."
         }
       }
     },
@@ -360,16 +368,18 @@
     "step": {
       "init": {
         "title": "Standard for nye pakkelister",
-        "description": "Bruges som udgangspunkt, når du opretter en ny pakkeliste. Du kan altid ændre det for den enkelte liste.",
+        "description": "Det nye lister starter med. Alt kan ændres på den enkelte liste.",
         "data": {
           "include_always": "Medtag punkter med #altid",
           "use_weight": "Brug vægt",
           "default_tags": "Tags der er valgt på forhånd",
-          "weight_limit_kg": "Vægtgrænse (0 = ingen)"
+          "weight_limit_kg": "Standard-vægtgrænse (0 = ingen)",
+          "quantity_controls": "Vis antal-knapper på kortet"
         },
         "data_description": {
           "default_tags": "Disse tags er markeret, når du trykker \"+ Ny liste\".",
-          "weight_limit_kg": "F.eks. 23 for en kuffert eller 8 for håndbagage. Gælder lister der bruger vægt."
+          "weight_limit_kg": "Den vægtgrænse nye lister starter med, f.eks. 23 for en kuffert eller 8 for håndbagage. Kan ændres på hver liste. Gælder lister der bruger vægt.",
+          "quantity_controls": "Viser − og + ved hvert punkt i fanen Pak, så antallet kan ændres direkte. Kan slås til og fra på hver liste."
         }
       }
     }

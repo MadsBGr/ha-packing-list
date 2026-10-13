@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "1.0.0";
+const CARD_VERSION = "1.1.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODE_KEY = "packing-list-card.packed-mode";
 const PACKED_MODES = ["inline", "bottom", "hide"];
@@ -134,6 +134,9 @@ const STRINGS = {
     archivedHeading: "Archived",
     archivedNotice: "This list is archived.",
     listName: "List name",
+    quantityControls: "Show quantity buttons on the card",
+    fewer: "Fewer",
+    more: "More",
     weightLimit: "Weight limit in kg, e.g. 23 (empty = none)",
     limitInfo: "limit {limit}",
     overLimit: "⚠ {over} over the weight limit",
@@ -267,6 +270,9 @@ const STRINGS = {
     archivedHeading: "Arkiverede",
     archivedNotice: "Listen er arkiveret.",
     listName: "Listens navn",
+    quantityControls: "Vis antal-knapper på kortet",
+    fewer: "Færre",
+    more: "Flere",
     weightLimit: "Vægtgrænse i kg, f.eks. 23 (tom = ingen)",
     limitInfo: "grænse {limit}",
     overLimit: "⚠ {over} over vægtgrænsen",
@@ -377,6 +383,9 @@ const STYLE = `
   .small { font-size: .8em; }
   .error { color: var(--error-color); padding: 8px 0; }
   .notice { color: var(--success-color, var(--primary-color)); font-size: .9em; }
+  .stepper { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+  .stepper button.icon { padding: 2px; --mdc-icon-size: 18px; }
+  .stepper .count { min-width: 1.6em; text-align: center; font-variant-numeric: tabular-nums; }
   .dialog { border: 1px solid var(--primary-color); }
   .dialog.danger { border-color: var(--error-color, #db4437); background: rgba(219, 68, 55, .08); }
   .dialog .msg { white-space: pre-line; }
@@ -958,6 +967,8 @@ class PackingListCard extends HTMLElement {
       <label class="check"><input type="checkbox" data-change="lWeight" ${f.lWeight ? "checked" : ""}>
         ${esc(this._t("useWeight"))}</label>
       ${f.lWeight ? this._renderLimitInput("lLimit", "save-list") : ""}
+      <label class="check"><input type="checkbox" data-change="lQty" ${f.lQty ? "checked" : ""}>
+        ${esc(this._t("quantityControls"))}</label>
       <div class="row"><button class="primary" data-action="save-list">${esc(this._t("save"))}</button>
         <button data-action="toggle-edit-list">${esc(this._t("cancel"))}</button></div>
     </div>`;
@@ -1012,6 +1023,8 @@ class PackingListCard extends HTMLElement {
       <label class="check"><input type="checkbox" data-change="newWeight" ${f.newWeight ? "checked" : ""}>
         ${esc(this._t("useWeight"))}</label>
       ${f.newWeight ? this._renderLimitInput("newLimit", "create-list") : ""}
+      <label class="check"><input type="checkbox" data-change="newQty" ${f.newQty ? "checked" : ""}>
+        ${esc(this._t("quantityControls"))}</label>
       <div class="row"><button class="primary" data-action="create-list">${esc(this._t("create"))}</button>
         <button data-action="toggle-new">${esc(this._t("cancel"))}</button></div>
     </div>`;
@@ -1085,8 +1098,22 @@ class PackingListCard extends HTMLElement {
       ? `<button class="icon" data-action="open-to-master" data-uid="${esc(item.uid)}" title="${esc(this._t("saveToMasterTitle"))}">
           <ha-icon icon="mdi:playlist-plus"></ha-icon></button>`
       : "";
+    // With quantity buttons the count sits between − and + instead of in front of the name.
+    const count = item.quantity || 1;
+    const stepper = list.quantity_controls
+      ? `<span class="stepper">
+          <button class="icon" data-action="qty-dec" data-uid="${esc(item.uid)}" title="${esc(this._t("fewer"))}" ${count <= 1 ? "disabled" : ""}>
+            <ha-icon icon="mdi:minus"></ha-icon></button>
+          <span class="count">${count}</span>
+          <button class="icon" data-action="qty-inc" data-uid="${esc(item.uid)}" title="${esc(this._t("more"))}">
+            <ha-icon icon="mdi:plus"></ha-icon></button>
+        </span>`
+      : "";
+    const label = list.quantity_controls
+      ? `<span class="name">${esc(item.summary)}${notes}</span>`
+      : name;
     return `<div class="item ${item.packed ? "done" : ""}" data-action="toggle-packed" data-uid="${esc(item.uid)}">
-        ${this._checkbox(item.packed)}${name}${weight}${toMaster}
+        ${this._checkbox(item.packed)}${label}${stepper}${weight}${toMaster}
         <button class="icon" data-action="edit-item" data-uid="${esc(item.uid)}" title="${esc(this._t("editItemTitle"))}">
           <ha-icon icon="mdi:pencil-outline"></ha-icon></button>
       </div>`;
@@ -1324,6 +1351,8 @@ class PackingListCard extends HTMLElement {
     } else if (key === "lWeight") {
       this._form.lWeight = ev.target.checked;
       this._render();
+    } else if (key === "newQty" || key === "lQty") {
+      this._form[key] = ev.target.checked;
     } else if (key === "iToMaster") {
       this._form.iToMaster = ev.target.checked;
     } else if (key === "xToMaster") {
@@ -1422,6 +1451,7 @@ class PackingListCard extends HTMLElement {
               newAlways: s.include_always !== false,
               newWeight: !!s.use_weight,
               newLimit: this._limitValue(s.weight_limit),
+              newQty: !!s.quantity_controls,
             });
           }
           this._render();
@@ -1445,6 +1475,7 @@ class PackingListCard extends HTMLElement {
             include_always: f.newAlways !== false,
             use_weight: !!f.newWeight,
             weight_limit: f.newWeight ? parseLimit(f.newLimit) : null,
+            quantity_controls: !!f.newQty,
           };
           const res = await this._callWithResponse("create_list", data);
           this._listId = res.list_id ?? this._listId;
@@ -1485,6 +1516,7 @@ class PackingListCard extends HTMLElement {
               lNotes: list.notes || "",
               lWeight: !!list.use_weight,
               lLimit: this._limitValue(list.weight_limit),
+              lQty: !!list.quantity_controls,
             });
           }
           this._focusPanel = this._showEditList ? "edit" : null;
@@ -1495,7 +1527,12 @@ class PackingListCard extends HTMLElement {
           if (!list) return;
           this._showEditList = false;
           this._render();
-          const data = { entity_id: list.entity_id, notes: f.lNotes || "", use_weight: !!f.lWeight };
+          const data = {
+            entity_id: list.entity_id,
+            notes: f.lNotes || "",
+            use_weight: !!f.lWeight,
+            quantity_controls: !!f.lQty,
+          };
           if (f.lWeight) data.weight_limit = parseLimit(f.lLimit);
           const name = (f.lName || "").trim();
           if (name && name !== list.name) data.name = name;
@@ -1539,6 +1576,22 @@ class PackingListCard extends HTMLElement {
             { item: item.uid, status: item.packed ? "needs_action" : "completed" },
             { entity_id: list.entity_id },
           );
+          break;
+        }
+        case "qty-inc":
+        case "qty-dec": {
+          const item = list.items.find((i) => i.uid === el.dataset.uid);
+          if (!item) return;
+          const quantity = (item.quantity || 1) + (action === "qty-inc" ? 1 : -1);
+          if (quantity < 1) return;
+          // Show the new count right away; the server confirms with the next refresh.
+          item.quantity = quantity > 1 ? quantity : null;
+          this._render();
+          await this._call("packing_list", "update_list_item", {
+            entity_id: list.entity_id,
+            item: item.uid,
+            quantity: item.quantity,
+          });
           break;
         }
         case "reset-list": {

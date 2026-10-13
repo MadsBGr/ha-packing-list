@@ -14,6 +14,7 @@ from homeassistant.helpers import entity_registry as er
 from .const import (
     CONF_DEFAULT_TAGS,
     CONF_INCLUDE_ALWAYS,
+    CONF_QUANTITY_CONTROLS,
     CONF_USE_WEIGHT,
     CONF_WEIGHT_LIMIT,
     DOMAIN,
@@ -54,6 +55,7 @@ def ws_get_data(
                 "use_weight": manager.options.get(CONF_USE_WEIGHT, False),
                 "default_tags": manager.options.get(CONF_DEFAULT_TAGS, []),
                 "weight_limit": (manager.options.get(CONF_WEIGHT_LIMIT) or 0) * 1000 or None,
+                "quantity_controls": manager.options.get(CONF_QUANTITY_CONTROLS, False),
             },
             "master": [item.as_dict() for item in manager.master],
             # Default items added in a newer release that the user hasn't added or skipped yet.
@@ -74,6 +76,7 @@ def ws_get_data(
                     "notes": plist.notes,
                     "use_weight": plist.use_weight,
                     "weight_limit": plist.weight_limit,
+                    "quantity_controls": plist.quantity_controls,
                     "archived": plist.archived,
                 }
                 for plist in manager.lists.values()

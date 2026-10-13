@@ -201,6 +201,8 @@ class PackingList:
     archived: bool = False
     # Optional maximum total weight in grams (e.g. 23 kg for a suitcase).
     weight_limit: float | None = None
+    # Show −/+ buttons on the card to change quantities directly.
+    quantity_controls: bool = False
 
     @property
     def done(self) -> bool:
@@ -646,6 +648,7 @@ class PackingListManager:
         use_weight: bool = False,
         notes: str = "",
         weight_limit: float | None = None,
+        quantity_controls: bool = False,
     ) -> PackingList:
         """Create an empty trip list."""
         plist = PackingList(
@@ -654,6 +657,7 @@ class PackingListManager:
             use_weight=use_weight,
             notes=notes.strip(),
             weight_limit=_clean_weight(weight_limit),
+            quantity_controls=quantity_controls,
         )
         self.lists[plist.list_id] = plist
         self._changed(plist.list_id)
@@ -681,6 +685,7 @@ class PackingListManager:
             notes=source.notes,
             use_weight=source.use_weight,
             weight_limit=source.weight_limit,
+            quantity_controls=source.quantity_controls,
         )
         self.lists[plist.list_id] = plist
         self._changed(plist.list_id)
@@ -696,8 +701,9 @@ class PackingListManager:
         use_weight: bool | None = None,
         archived: bool | None = None,
         weight_limit: float | None = KEEP,
+        quantity_controls: bool | None = None,
     ) -> None:
-        """Rename a trip list or change its notes, weight settings or archived state.
+        """Rename a trip list or change its notes, weight/quantity settings or archived state.
 
         ``None`` keeps a value; for ``weight_limit`` ``None`` clears it. An
         archived list stops being the active list.
@@ -705,6 +711,8 @@ class PackingListManager:
         plist = self.lists[list_id]
         if weight_limit is not KEEP:
             plist.weight_limit = _clean_weight(weight_limit)
+        if quantity_controls is not None:
+            plist.quantity_controls = quantity_controls
         if archived and self.active_list_id == list_id:
             self.active_list_id = None
         if name is not None and name.strip():

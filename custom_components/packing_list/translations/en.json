@@ -48,7 +48,11 @@
         },
         "weight_limit": {
           "name": "Weight limit",
-          "description": "Maximum total weight in grams (0 or empty removes the limit)."
+          "description": "Maximum total weight in grams (0 or empty removes the limit). Omitted = the integration's default weight limit."
+        },
+        "quantity_controls": {
+          "name": "Quantity buttons on the card",
+          "description": "Show − and + next to each item, so the quantity can be changed directly on the card. Omitted = the integration's default."
         }
       }
     },
@@ -259,6 +263,10 @@
         "weight_limit": {
           "name": "Weight limit",
           "description": "Maximum total weight in grams (0 or empty removes the limit)."
+        },
+        "quantity_controls": {
+          "name": "Quantity buttons on the card",
+          "description": "Show − and + next to each item, so the quantity can be changed directly on the card."
         }
       }
     },
@@ -360,16 +368,18 @@
     "step": {
       "init": {
         "title": "Defaults for new packing lists",
-        "description": "Used as the starting point when you create a new packing list. You can always change it for a single list.",
+        "description": "What new lists start with. Everything can be changed on the individual list.",
         "data": {
           "include_always": "Include items tagged #always",
           "use_weight": "Use weight",
           "default_tags": "Tags selected in advance",
-          "weight_limit_kg": "Weight limit (0 = none)"
+          "weight_limit_kg": "Default weight limit (0 = none)",
+          "quantity_controls": "Show quantity buttons on the card"
         },
         "data_description": {
           "default_tags": "These tags are selected when you press \"+ New list\".",
-          "weight_limit_kg": "E.g. 23 for a suitcase or 8 for hand luggage. Applies to lists that use weight."
+          "weight_limit_kg": "The weight limit new lists start with, e.g. 23 for a suitcase or 8 for hand luggage. Can be changed on each list. Applies to lists that use weight.",
+          "quantity_controls": "Shows − and + next to each item on the Pack tab, so the quantity can be changed directly. Can be turned on and off on each list."
         }
       }
     }

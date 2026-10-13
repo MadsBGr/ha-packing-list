@@ -1,7 +1,7 @@
 """Constants for the Packing List integration."""
 
 DOMAIN = "packing_list"
-VERSION = "1.0.0"
+VERSION = "1.1.0"
 
 STORAGE_KEY = f"{DOMAIN}.storage"
 STORAGE_VERSION = 2  # see PackingListStore for the history
@@ -13,6 +13,7 @@ CONF_INCLUDE_ALWAYS = "include_always"
 CONF_USE_WEIGHT = "use_weight"
 CONF_DEFAULT_TAGS = "default_tags"
 CONF_WEIGHT_LIMIT = "weight_limit_kg"
+CONF_QUANTITY_CONTROLS = "quantity_controls"
 
 # Key used for the master list in the manager's listener registry.
 MASTER_KEY = "master"

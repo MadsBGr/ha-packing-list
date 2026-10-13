@@ -117,12 +117,15 @@ test("delete mode removes the selected items", async () => {
 
 test("a new list starts from the configured defaults", async () => {
   const data = baseData();
-  data.settings = { include_always: false, use_weight: true, default_tags: ["fly", "gone"], weight_limit: 23000 };
+  data.settings = {
+    include_always: false, use_weight: true, default_tags: ["fly", "gone"], weight_limit: 23000, quantity_controls: true,
+  };
   const card = await makeCard({ data });
   card.$('[data-action="toggle-new"]').click();
   await tick();
   assert.deepEqual(card.$$('[data-action="toggle-new-tag"].on').map((b) => b.textContent), ["#fly"]);
   assert.equal(card.$('[data-input="newLimit"]').value, "23");
+  assert.equal(card.$('[data-change="newQty"]').checked, true);
   const name = card.$('[data-input="newName"]');
   name.value = "Rejse";
   name.dispatchEvent(new Event("input", { bubbles: true }));
@@ -131,7 +134,32 @@ test("a new list starts from the configured defaults", async () => {
   const create = card.calls.find((c) => c.service === "create_list");
   assert.deepEqual(create.service_data, {
     name: "Rejse", notes: "", tags: ["fly"], include_always: false, use_weight: true, weight_limit: 23000,
+    quantity_controls: true,
   });
+});
+
+test("quantity buttons change the quantity directly on the card", async () => {
+  const data = baseData();
+  data.lists[0] = list("ski", "Ski", {
+    quantity_controls: true,
+    items: [item("a", "Strømper", "Tøj", { quantity: 2 }), item("b", "Pas", "Dokumenter")],
+  });
+  const card = await makeCard({ data });
+  const count = (uid) => card.$(`[data-action="qty-inc"][data-uid="${uid}"]`).parentElement.querySelector(".count").textContent;
+  assert.equal(count("a"), "2");
+  assert.equal(count("b"), "1");
+  assert.equal(card.$('[data-action="qty-dec"][data-uid="b"]').disabled, true);
+
+  card.$('[data-action="qty-inc"][data-uid="a"]').click();
+  await tick();
+  assert.equal(count("a"), "3");
+  card.$('[data-action="qty-dec"][data-uid="a"]').click();
+  card.$('[data-action="qty-dec"][data-uid="a"]').click();
+  await tick();
+  const calls = card.calls.filter((c) => c.service === "update_list_item").map((c) => c.data.quantity);
+  assert.deepEqual(calls, [3, 2, null]); // 1 is stored as "no quantity"
+  // The buttons don't toggle the item as packed.
+  assert.equal(card.calls.some((c) => c.service === "update_item"), false);
 });
 
 test("texts follow the language, with English as fallback", async () => {

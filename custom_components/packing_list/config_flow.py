@@ -20,6 +20,7 @@ from homeassistant.helpers.selector import (
 from .const import (
     CONF_DEFAULT_TAGS,
     CONF_INCLUDE_ALWAYS,
+    CONF_QUANTITY_CONTROLS,
     CONF_SEED_MASTER,
     CONF_USE_WEIGHT,
     CONF_WEIGHT_LIMIT,
@@ -82,6 +83,9 @@ class PackingListOptionsFlow(OptionsFlow):
                     ): BooleanSelector(),
                     vol.Required(
                         CONF_USE_WEIGHT, default=options.get(CONF_USE_WEIGHT, False)
+                    ): BooleanSelector(),
+                    vol.Required(
+                        CONF_QUANTITY_CONTROLS, default=options.get(CONF_QUANTITY_CONTROLS, False)
                     ): BooleanSelector(),
                     vol.Optional(
                         CONF_DEFAULT_TAGS, default=options.get(CONF_DEFAULT_TAGS, [])
