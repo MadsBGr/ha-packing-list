@@ -3,9 +3,24 @@
 [![HACS](https://img.shields.io/badge/HACS-Custom-orange.svg)](https://hacs.xyz/)
 [![Validate](https://github.com/MadsBGr/ha-packing-list/actions/workflows/validate.yaml/badge.svg)](https://github.com/MadsBGr/ha-packing-list/actions/workflows/validate.yaml)
 
-Keep **one master list** of everything you ever pack. For each trip, create a **packing list** with just
-what you need, and check things off as you pack.
-Every packing list is a regular Home Assistant to-do list, so it also works in the app and with Assist.
+Plan your packing once, and reuse it for every trip.
+
+- **One master list** holds everything you might ever pack, sorted into **categories** (Clothes, Toiletries,
+  Electronics …) and marked with **tags** (`#ski`, `#beach`, `#flight` …).
+- **A new packing list in seconds:** pick the tags for the trip, and every matching item is added. Items
+  tagged `#always` come along automatically.
+- **Going somewhere similar again?** Copy an old packing list, active or archived, and start from there.
+- **Every list is your own:** add, remove or adjust items on one trip without touching the master list or
+  your other lists.
+- **Quantities:** note how many you need, like "5× Socks". A default quantity on the master list carries
+  over to new lists.
+- **Know what you'll carry:** add a weight to items, and see the total per category and for the whole list.
+  You can set a weight limit, such as 23 kg for a suitcase, and get a warning if you go over it.
+- **Easy to maintain:** add many items at once, change a category or tag in one place, and save a new item
+  from a trip straight to the master list.
+
+Check things off as you pack. Every packing list is a regular Home Assistant to-do list, so it also works
+in the app and with Assist.
 
 The card and all texts follow your Home Assistant language: Danish or English (English for any other language).
 
