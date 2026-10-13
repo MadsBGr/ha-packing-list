@@ -196,10 +196,6 @@
           "name": "Tags",
           "description": "Optional tags."
         },
-        "add_to_master": {
-          "name": "Also save in master",
-          "description": "Also save the item on the master list."
-        },
         "quantity": {
           "name": "Quantity",
           "description": "Optional quantity."
@@ -207,6 +203,10 @@
         "weight": {
           "name": "Weight per piece",
           "description": "Optional weight in grams per piece."
+        },
+        "save_to_master": {
+          "name": "Also save to master",
+          "description": "Also save the item on the master list."
         }
       }
     },
@@ -282,9 +282,9 @@
           "name": "Weight per piece",
           "description": "New weight in grams per piece. 0 clears it, leaving it out keeps it."
         },
-        "update_master": {
-          "name": "Save weight to master",
-          "description": "Also save the weight on the master item, and so on every list that has it."
+        "save_to_master": {
+          "name": "Also save to master",
+          "description": "Also save the weight on the master item (and so on every list that has it)."
         }
       }
     },

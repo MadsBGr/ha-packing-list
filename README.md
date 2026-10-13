@@ -98,13 +98,14 @@ You can always change these for a single list.
 
 | Entity | What it shows |
 |---|---|
-| `select.active_packing_list` | The **active packing list**. The card opens it, and picking a list in the card makes it active. You can also change it from an automation. |
+| `select.packing_list_active` | The **active packing list**. The card opens it, and picking a list in the card makes it active. You can also change it from an automation. |
 | `sensor.packing_list_remaining` | How many items are still **missing** on the active list. The attributes `items` and `categories` hold their names, for a tablet, a notification or a watch. |
 | `binary_sensor.<list>_done` | **On** when everything on the list is packed. |
 | `sensor.<list>_packed` | Percentage of the list that is packed. |
 
-With Home Assistant in Danish the entities are named `select.pakkeliste_aktiv`,
-`sensor.pakkeliste_mangler`, `binary_sensor.<list>_faerdig` and `sensor.<list>_pakket`.
+The entity ids are the same in every language; only the displayed names are translated. (Entities
+created before version 0.14 keep the ids they got then, e.g. `select.pakkeliste_aktiv` with Danish as
+language – rename them under *Settings → Entities* if you like.)
 
 Example notification with what's missing:
 
@@ -216,7 +217,7 @@ packed_mode: bottom        # inline | bottom | hide (first time only – after t
 | `todo.<list>` | number of items not packed | `total`, `packed`, `notes`, `archived`, and with weight `total_weight`, `packed_weight`, `weight_limit` (grams), `over_weight_limit` |
 | `sensor.<list>_packed` | % packed | `packed`, `total`, `remaining`, and with weight as above |
 | `binary_sensor.<list>_done` | `on` when everything is packed | |
-| `select.active_packing_list` | name of the active list | `entity_id` (the list's to-do entity) |
+| `select.packing_list_active` | name of the active list | `entity_id` (the list's to-do entity) |
 | `sensor.packing_list_remaining` | number of missing items on the active list | `list`, `entity_id`, `items`, `categories` (names per category; `""` = no category), `packed`, `total` |
 
 The standard `todo.*` actions (`add_item`, `update_item`, `remove_item`, `get_items`) work on every list.
@@ -236,8 +237,8 @@ The standard `todo.*` actions (`add_item`, `update_item`, `remove_item`, `get_it
 | `packing_list.reset_list` | Unchecks every item. |
 | `packing_list.add_from_master` | Adds items by `tags`, `categories` or `items`. With `include_excluded: true` deleted items come back too. |
 | `packing_list.refresh_list` | Fetch again. With `include_excluded: true` deleted items come back too. |
-| `packing_list.add_list_item` | Adds an item with optional `category`, `tags`, `quantity` and `weight`. With `add_to_master: true` it is also saved to the master list. |
-| `packing_list.update_list_item` | Changes `quantity` and `weight` of an item. With `update_master: true` the weight is also saved to the master list. |
+| `packing_list.add_list_item` | Adds an item with optional `category`, `tags`, `quantity` and `weight`. With `save_to_master: true` it is also saved to the master list. |
+| `packing_list.update_list_item` | Changes `quantity` and `weight` of an item. With `save_to_master: true` the weight is also saved to the master list. |
 | `packing_list.copy_to_master` | Saves an item from the list to the master list. |
 
 **Master list**
@@ -265,7 +266,9 @@ data:
 
 ```bash
 pip install -r requirements_test.txt
-pytest
+pytest          # the integration
+npm install
+npm test        # the card
 ```
 </details>
 

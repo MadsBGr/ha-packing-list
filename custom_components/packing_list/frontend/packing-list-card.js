@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide (the viewer's own choice wins)
  */
 
-const CARD_VERSION = "0.13.1";
+const CARD_VERSION = "0.14.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODE_KEY = "packing-list-card.packed-mode";
 const PACKED_MODES = ["inline", "bottom", "hide"];
@@ -1561,7 +1561,7 @@ class PackingListCard extends HTMLElement {
               tags: this._tagsFor("xTags"),
               quantity: parseQuantity(f.xQty),
               weight: list.use_weight ? parseWeight(f.xWeight) : null,
-              add_to_master: f.xToMaster !== false,
+              save_to_master: f.xToMaster !== false,
             });
           }
           // Keep category/tags for the next item; clear the name, quantity and weight.
@@ -1602,7 +1602,7 @@ class PackingListCard extends HTMLElement {
           this._editItemUid = null;
           this._render();
           const data = { entity_id: list.entity_id, item: uid, quantity: parseQuantity(f.iQty) };
-          if (list.use_weight) Object.assign(data, { weight: parseWeight(f.iWeight), update_master: f.iToMaster !== false });
+          if (list.use_weight) Object.assign(data, { weight: parseWeight(f.iWeight), save_to_master: f.iToMaster !== false });
           await this._call("packing_list", "update_list_item", data);
           break;
         }

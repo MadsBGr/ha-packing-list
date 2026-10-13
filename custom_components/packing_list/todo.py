@@ -161,8 +161,10 @@ class MasterTodoEntity(_PackingTodoEntity):
 
     def __init__(self, manager: PackingListManager) -> None:
         super().__init__(manager, MASTER_KEY)
-        # The name follows the HA language; an existing entity id is kept by the registry.
+        # The name follows the HA language; the entity id is the same in every language.
+        # (Only used when the entity is first created; the registry keeps an existing id.)
         self._attr_name = NAMES[manager.language]["master"]
+        self.entity_id = "todo.packing_list_master"
 
     async def async_will_remove_from_hass(self) -> None:
         """Recreate the master entity if it was deleted in the HA UI."""

@@ -9,6 +9,7 @@ from homeassistant.const import PERCENTAGE
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import slugify
 
 from . import PackingListConfigEntry
 from .const import NAMES, SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX, UNIQUE_ID_REMAINING
@@ -47,6 +48,8 @@ class PackingProgressSensor(SensorEntity):
         self._manager = manager
         self._list_id = list_id
         self._attr_unique_id = f"{UNIQUE_ID_LIST_PREFIX}{list_id}_progress"
+        # Same suffix in every language (only used when the entity is first created).
+        self.entity_id = f"sensor.{slugify(manager.lists[list_id].name)}_packed"
 
     @property
     def name(self) -> str | None:
@@ -93,6 +96,7 @@ class RemainingSensor(SensorEntity):
     def __init__(self, manager: PackingListManager) -> None:
         self._manager = manager
         self._attr_name = NAMES[manager.language]["remaining"]
+        self.entity_id = "sensor.packing_list_remaining"
 
     async def async_added_to_hass(self) -> None:
         """Follow every change (the active list or its items)."""

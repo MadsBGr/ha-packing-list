@@ -96,6 +96,28 @@ def _from_dict(cls: type, data: dict[str, Any]) -> Any:
     return cls(**{key: value for key, value in data.items() if key in names})
 
 
+class PackingListStore(Store[dict[str, Any]]):
+    """Storage with migrations between data format versions.
+
+    Version history (major):
+      1 – up to 0.13: lists could have a trip_date.
+      2 – 0.14: trip_date removed.
+    New fields with defaults don't need a version bump: missing keys get their
+    default when loaded and unknown keys are ignored.
+    """
+
+    async def _async_migrate_func(
+        self, old_major_version: int, old_minor_version: int, old_data: dict[str, Any]
+    ) -> dict[str, Any]:
+        data = dict(old_data)
+        if old_major_version < 2:
+            data["lists"] = [
+                {key: value for key, value in plist.items() if key != "trip_date"}
+                for plist in data.get("lists", [])
+            ]
+        return data
+
+
 def _new_uid() -> str:
     return uuid.uuid4().hex
 
@@ -206,7 +228,7 @@ class PackingListManager:
 
     def __init__(self, hass: HomeAssistant, seed_master: bool) -> None:
         self.hass = hass
-        self.store: Store[dict[str, Any]] = Store(hass, STORAGE_VERSION, STORAGE_KEY)
+        self.store = PackingListStore(hass, STORAGE_VERSION, STORAGE_KEY)
         self._seed_master = seed_master
         self.master: list[PackingItem] = []
         self.lists: dict[str, PackingList] = {}

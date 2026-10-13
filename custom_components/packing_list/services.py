@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import logging
 from typing import Any
 
 import voluptuous as vol
@@ -49,7 +50,7 @@ ATTR_WEIGHT = "weight"
 ATTR_NOTES = "notes"
 ATTR_USE_WEIGHT = "use_weight"
 ATTR_ARCHIVED = "archived"
-ATTR_UPDATE_MASTER = "update_master"
+ATTR_SAVE_TO_MASTER = "save_to_master"
 ATTR_WEIGHT_LIMIT = "weight_limit"
 
 SERVICE_CREATE_LIST = "create_list"
@@ -69,7 +70,7 @@ SERVICE_ADD_NEW_DEFAULTS = "add_new_defaults"
 SERVICE_SKIP_NEW_DEFAULTS = "skip_new_defaults"
 SERVICE_SET_ACTIVE_LIST = "set_active_list"
 
-ATTR_TO_MASTER = "add_to_master"
+_LOGGER = logging.getLogger(__name__)
 
 
 def _split_list(separator: str):
@@ -100,20 +101,46 @@ _SELECTION_SCHEMA = {
     vol.Optional(ATTR_ITEMS, default=list): _string_list,
 }
 
-# Lists no longer have a date; the field is still accepted (and ignored) so old scripts keep working.
-_IGNORED_TRIP_DATE = {vol.Optional(ATTR_TRIP_DATE): vol.Any(None, cv.string, cv.date)}
+# Old field names still accepted until 1.0, with a warning in the log:
+# trip_date is ignored (lists no longer have a date); add_to_master/update_master -> save_to_master.
+_DEPRECATED_RENAMED = {"add_to_master": ATTR_SAVE_TO_MASTER, "update_master": ATTR_SAVE_TO_MASTER}
+_DEPRECATED_IGNORED = (ATTR_TRIP_DATE,)
+_warned: set[str] = set()
+
+
+def _deprecated_fields(data: Any) -> Any:
+    """Translate deprecated service fields before validation."""
+    if not isinstance(data, dict):
+        return data
+    data = dict(data)
+    for old in [key for key in data if key in _DEPRECATED_RENAMED or key in _DEPRECATED_IGNORED]:
+        value = data.pop(old)
+        new = _DEPRECATED_RENAMED.get(old)
+        if new:
+            data.setdefault(new, value)
+        if old not in _warned:
+            _warned.add(old)
+            _LOGGER.warning(
+                "packing_list: the field '%s' is deprecated and will be removed in 1.0%s",
+                old,
+                f"; use '{new}' instead" if new else " (it is ignored)",
+            )
+    return data
+
 
 # include_always, use_weight and weight_limit default to the integration's options.
-CREATE_LIST_SCHEMA = vol.Schema(
-    {
-        vol.Required(ATTR_NAME): cv.string,
-        **_IGNORED_TRIP_DATE,
-        vol.Optional(ATTR_INCLUDE_ALWAYS): cv.boolean,
-        vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
-        vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
-        vol.Optional(ATTR_NOTES, default=""): cv.string,
-        **_SELECTION_SCHEMA,
-    }
+CREATE_LIST_SCHEMA = vol.All(
+    _deprecated_fields,
+    vol.Schema(
+        {
+            vol.Required(ATTR_NAME): cv.string,
+            vol.Optional(ATTR_INCLUDE_ALWAYS): cv.boolean,
+            vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
+            vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
+            vol.Optional(ATTR_NOTES, default=""): cv.string,
+            **_SELECTION_SCHEMA,
+        }
+    ),
 )
 
 SET_ACTIVE_LIST_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTITY_ID): vol.Any(None, cv.entity_id)})
@@ -159,40 +186,48 @@ UPDATE_MASTER_ITEM_SCHEMA = vol.Schema(
 )
 
 
-ADD_LIST_ITEM_SCHEMA = vol.Schema(
-    {
-        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-        vol.Required(ATTR_ITEM): cv.string,
-        vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
-        vol.Optional(ATTR_TAGS, default=list): _string_list,
-        vol.Optional(ATTR_QUANTITY): _quantity,
-        vol.Optional(ATTR_WEIGHT): _weight,
-        vol.Optional(ATTR_TO_MASTER, default=False): cv.boolean,
-    }
+ADD_LIST_ITEM_SCHEMA = vol.All(
+    _deprecated_fields,
+    vol.Schema(
+        {
+            vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+            vol.Required(ATTR_ITEM): cv.string,
+            vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
+            vol.Optional(ATTR_TAGS, default=list): _string_list,
+            vol.Optional(ATTR_QUANTITY): _quantity,
+            vol.Optional(ATTR_WEIGHT): _weight,
+            vol.Optional(ATTR_SAVE_TO_MASTER, default=False): cv.boolean,
+        }
+    ),
 )
 
 # Leaving out a field keeps it.
-UPDATE_LIST_SCHEMA = vol.Schema(
-    {
-        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-        vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(min=1)),
-        **_IGNORED_TRIP_DATE,
-        vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
-        vol.Optional(ATTR_NOTES): cv.string,
-        vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
-        vol.Optional(ATTR_ARCHIVED): cv.boolean,
-    }
+UPDATE_LIST_SCHEMA = vol.All(
+    _deprecated_fields,
+    vol.Schema(
+        {
+            vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+            vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(min=1)),
+            vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
+            vol.Optional(ATTR_NOTES): cv.string,
+            vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
+            vol.Optional(ATTR_ARCHIVED): cv.boolean,
+        }
+    ),
 )
 
 # Leaving out quantity/weight keeps them; null or 0 clears them.
-UPDATE_LIST_ITEM_SCHEMA = vol.Schema(
-    {
-        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-        vol.Required(ATTR_ITEM): cv.string,
-        vol.Optional(ATTR_QUANTITY): _quantity,
-        vol.Optional(ATTR_WEIGHT): _weight,
-        vol.Optional(ATTR_UPDATE_MASTER, default=False): cv.boolean,
-    }
+UPDATE_LIST_ITEM_SCHEMA = vol.All(
+    _deprecated_fields,
+    vol.Schema(
+        {
+            vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+            vol.Required(ATTR_ITEM): cv.string,
+            vol.Optional(ATTR_QUANTITY): _quantity,
+            vol.Optional(ATTR_WEIGHT): _weight,
+            vol.Optional(ATTR_SAVE_TO_MASTER, default=False): cv.boolean,
+        }
+    ),
 )
 
 COPY_LIST_SCHEMA = vol.Schema(
@@ -480,7 +515,7 @@ def async_register_services(hass: HomeAssistant) -> None:
             tags=call.data[ATTR_TAGS],
             quantity=call.data.get(ATTR_QUANTITY),
             weight=call.data.get(ATTR_WEIGHT),
-            to_master=call.data[ATTR_TO_MASTER],
+            to_master=call.data[ATTR_SAVE_TO_MASTER],
         )
         return {"uid": item.uid, "master_uid": item.master_uid}
 
@@ -505,7 +540,7 @@ def async_register_services(hass: HomeAssistant) -> None:
             item.uid,
             quantity=_optional(call.data, ATTR_QUANTITY),
             weight=_optional(call.data, ATTR_WEIGHT),
-            to_master=call.data[ATTR_UPDATE_MASTER],
+            to_master=call.data[ATTR_SAVE_TO_MASTER],
         )
 
     async def copy_to_master(call: ServiceCall) -> ServiceResponse:

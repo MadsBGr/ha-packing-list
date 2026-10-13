@@ -79,7 +79,7 @@ async def test_add_list_item_to_master(hass: HomeAssistant, setup_entry) -> None
     result = await _call(
         hass,
         "add_list_item",
-        {"entity_id": entity_id, "item": "Kajak", "category": "Sport", "tags": ["sommer", "vand"], "add_to_master": True},
+        {"entity_id": entity_id, "item": "Kajak", "category": "Sport", "tags": ["sommer", "vand"], "save_to_master": True},
         True,
     )
     assert result["master_uid"]
@@ -88,7 +88,7 @@ async def test_add_list_item_to_master(hass: HomeAssistant, setup_entry) -> None
     (item,) = await _items(hass, entity_id)
     assert item["description"] == "@Sport #sommer #vand"
 
-    # Without add_to_master only the list gets it.
+    # Without save_to_master only the list gets it.
     await _call(hass, "add_list_item", {"entity_id": entity_id, "item": "Padleårer", "category": "Sport"})
     assert "Padleårer" not in {i["summary"] for i in await _items(hass, MASTER)}
 

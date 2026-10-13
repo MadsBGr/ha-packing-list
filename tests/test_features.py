@@ -44,11 +44,11 @@ async def test_quantity_and_weight(hass: HomeAssistant, setup_entry, hass_ws_cli
         target={"entity_id": entity_id}, blocking=True,
     )
     assert hass.states.get(entity_id).attributes["packed_weight"] == 30
-    assert hass.states.get("sensor.vandretur_pakket").attributes["total_weight"] == 230
+    assert hass.states.get("sensor.vandretur_packed").attributes["total_weight"] == 230
 
     # Quantity on the list only; weight also saved on the master (and from there on other lists).
     other = (await _create(hass, name="Anden", items=["Strømper"], include_always=False))["entity_id"]
-    await _call(hass, "update_list_item", {"entity_id": entity_id, "item": "Strømper", "quantity": 3, "weight": 50, "update_master": True})
+    await _call(hass, "update_list_item", {"entity_id": entity_id, "item": "Strømper", "quantity": 3, "weight": 50, "save_to_master": True})
     data = await _data(hass, hass_ws_client)
     master = {i["summary"]: i for i in data["master"]}
     assert (master["Strømper"]["quantity"], master["Strømper"]["weight"]) == (5, 50)
@@ -72,7 +72,7 @@ async def test_add_list_item_with_weight_to_master(hass: HomeAssistant, setup_en
     entity_id = (await _create(hass, name="Tur", include_always=False, use_weight=True))["entity_id"]
     await _call(
         hass, "add_list_item",
-        {"entity_id": entity_id, "item": "Telt", "category": "Lejr", "quantity": 1, "weight": 2100.5, "add_to_master": True},
+        {"entity_id": entity_id, "item": "Telt", "category": "Lejr", "quantity": 1, "weight": 2100.5, "add_to_master": True},  # deprecated name, still accepted
     )
     data = await _data(hass, hass_ws_client)
     master = {i["summary"]: i for i in data["master"]}

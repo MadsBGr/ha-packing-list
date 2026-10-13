@@ -227,7 +227,7 @@ add_list_item:
           step: any
           mode: box
           unit_of_measurement: g
-    add_to_master:
+    save_to_master:
       default: false
       selector:
         boolean:
@@ -334,7 +334,7 @@ update_list_item:
           step: any
           mode: box
           unit_of_measurement: g
-    update_master:
+    save_to_master:
       default: false
       selector:
         boolean:

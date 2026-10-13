@@ -9,7 +9,7 @@ from homeassistant.helpers import entity_registry as er
 from custom_components.packing_list.const import DOMAIN, SEED_ITEMS_DA as SEED_ITEMS, VERSION
 from custom_components.packing_list.manager import parse_description
 
-MASTER = "todo.pakkeliste_master"
+MASTER = "todo.packing_list_master"
 
 
 async def _items(hass: HomeAssistant, entity_id: str) -> list[dict]:
@@ -62,7 +62,7 @@ async def test_create_list_from_tags(hass: HomeAssistant, setup_entry) -> None:
     state = hass.states.get(entity_id)
     assert "trip_date" not in state.attributes
     assert state.attributes["version"] == VERSION
-    assert hass.states.get("sensor.skiferie_pakket").state == "0"
+    assert hass.states.get("sensor.skiferie_packed").state == "0"
 
 
 async def test_add_from_master_skips_duplicates(hass: HomeAssistant, setup_entry) -> None:
@@ -90,11 +90,11 @@ async def test_pack_reset_and_progress(hass: HomeAssistant, setup_entry) -> None
         "todo", "update_item", {"item": "Pas", "status": "completed"},
         target={"entity_id": entity_id}, blocking=True,
     )
-    assert hass.states.get("sensor.weekend_pakket").state == "50"
+    assert hass.states.get("sensor.weekend_packed").state == "50"
     assert hass.states.get(entity_id).state == "1"
 
     await hass.services.async_call(DOMAIN, "reset_list", {"entity_id": entity_id}, blocking=True)
-    assert hass.states.get("sensor.weekend_pakket").state == "0"
+    assert hass.states.get("sensor.weekend_packed").state == "0"
 
 
 async def test_master_ignores_completion(hass: HomeAssistant, setup_entry) -> None:
@@ -112,7 +112,7 @@ async def test_delete_list(hass: HomeAssistant, setup_entry) -> None:
 
     registry = er.async_get(hass)
     assert registry.async_get(entity_id) is None
-    assert registry.async_get("sensor.slettes_pakket") is None
+    assert registry.async_get("sensor.slettes_packed") is None
     assert hass.states.get(entity_id) is None
 
 

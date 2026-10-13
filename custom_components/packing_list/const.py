@@ -1,10 +1,10 @@
 """Constants for the Packing List integration."""
 
 DOMAIN = "packing_list"
-VERSION = "0.13.1"
+VERSION = "0.14.0"
 
 STORAGE_KEY = f"{DOMAIN}.storage"
-STORAGE_VERSION = 1
+STORAGE_VERSION = 2  # see PackingListStore for the history
 
 CONF_SEED_MASTER = "seed_master"
 

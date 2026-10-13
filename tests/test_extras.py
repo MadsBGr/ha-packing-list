@@ -13,8 +13,8 @@ from custom_components.packing_list.const import (
 
 from .test_init import _create, _items
 
-SELECT = "select.pakkeliste_aktiv"
-REMAINING = "sensor.pakkeliste_mangler"
+SELECT = "select.packing_list_active"
+REMAINING = "sensor.packing_list_remaining"
 
 
 async def _call(hass: HomeAssistant, service: str, data: dict, response: bool = False):
@@ -61,7 +61,7 @@ async def test_weight_limit(hass: HomeAssistant, setup_entry) -> None:
     )["entity_id"]
     attrs = hass.states.get(entity_id).attributes
     assert (attrs["weight_limit"], attrs["over_weight_limit"]) == (1000, True)
-    assert hass.states.get("sensor.fly_pakket").attributes["over_weight_limit"] is True
+    assert hass.states.get("sensor.fly_packed").attributes["over_weight_limit"] is True
 
     await _call(hass, "update_list", {"entity_id": entity_id, "weight_limit": 2000})
     assert hass.states.get(entity_id).attributes["over_weight_limit"] is False
@@ -108,11 +108,11 @@ async def test_active_list_and_remaining(hass: HomeAssistant, setup_entry) -> No
 
 async def test_done_sensor(hass: HomeAssistant, setup_entry) -> None:
     entity_id = (await _create(hass, name="Weekend", items=["Pas"], include_always=False))["entity_id"]
-    assert hass.states.get("binary_sensor.weekend_faerdig").state == "off"
+    assert hass.states.get("binary_sensor.weekend_done").state == "off"
     (item,) = await _items(hass, entity_id)
     await hass.services.async_call("todo", "update_item", {"item": item["uid"], "status": "completed"}, target={"entity_id": entity_id}, blocking=True)
-    assert hass.states.get("binary_sensor.weekend_faerdig").state == "on"
+    assert hass.states.get("binary_sensor.weekend_done").state == "on"
 
     await _call(hass, "delete_list", {"entity_id": entity_id})
     await hass.async_block_till_done()
-    assert er.async_get(hass).async_get("binary_sensor.weekend_faerdig") is None
+    assert er.async_get(hass).async_get("binary_sensor.weekend_done") is None

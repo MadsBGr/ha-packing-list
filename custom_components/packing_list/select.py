@@ -36,6 +36,8 @@ class ActiveListSelect(SelectEntity):
     def __init__(self, manager: PackingListManager) -> None:
         self._manager = manager
         self._attr_name = NAMES[manager.language]["active"]
+        # Same entity id in every language (only used when the entity is first created).
+        self.entity_id = "select.packing_list_active"
 
     async def async_added_to_hass(self) -> None:
         """Follow every change (lists added, renamed, archived, active changed)."""

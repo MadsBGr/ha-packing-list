@@ -196,10 +196,6 @@
           "name": "Tags",
           "description": "Valgfrie tags."
         },
-        "add_to_master": {
-          "name": "Gem også i master",
-          "description": "Gem også punktet i master-listen."
-        },
         "quantity": {
           "name": "Antal",
           "description": "Valgfrit antal."
@@ -207,6 +203,10 @@
         "weight": {
           "name": "Vægt pr. stk.",
           "description": "Valgfri vægt i gram pr. stk."
+        },
+        "save_to_master": {
+          "name": "Gem også i master",
+          "description": "Gem også punktet i master-listen."
         }
       }
     },
@@ -282,9 +282,9 @@
           "name": "Vægt pr. stk.",
           "description": "Ny vægt i gram pr. stk. 0 fjerner den, udeladt beholder den."
         },
-        "update_master": {
-          "name": "Gem vægten i master",
-          "description": "Gem også vægten på master-punktet og dermed på alle lister, der har det."
+        "save_to_master": {
+          "name": "Gem også i master",
+          "description": "Gem også vægten på master-punktet (og dermed på alle lister med punktet)."
         }
       }
     },

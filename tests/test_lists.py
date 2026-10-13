@@ -42,7 +42,7 @@ async def test_rename_list(hass: HomeAssistant, setup_entry) -> None:
 
     # Same entity ids, new names.
     assert hass.states.get(entity_id).attributes["friendly_name"] == "Skiferie Østrig"
-    assert hass.states.get("sensor.skiferie_pakket").attributes["friendly_name"] == "Skiferie Østrig pakket"
+    assert hass.states.get("sensor.skiferie_packed").attributes["friendly_name"] == "Skiferie Østrig pakket"
     assert await hass.config_entries.async_reload(setup_entry.entry_id)
     await hass.async_block_till_done()
     assert hass.states.get(entity_id).attributes["friendly_name"] == "Skiferie Østrig"
@@ -75,8 +75,8 @@ async def test_entity_deleted_in_ha_ui_deletes_list(hass: HomeAssistant, setup_e
     await hass.async_block_till_done()
 
     assert (await _data(hass, hass_ws_client))["lists"] == []
-    assert registry.async_get("sensor.slettes_pakket") is None
-    assert hass.states.get("sensor.slettes_pakket") is None
+    assert registry.async_get("sensor.slettes_packed") is None
+    assert hass.states.get("sensor.slettes_packed") is None
 
 
 async def test_master_entity_deleted_in_ha_ui_is_recreated(hass: HomeAssistant, setup_entry) -> None:

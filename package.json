@@ -1,0 +1,12 @@
+{
+  "name": "ha-packing-list-card-tests",
+  "private": true,
+  "type": "module",
+  "description": "Tests for the bundled Lovelace card (the card itself has no build step or dependencies).",
+  "scripts": {
+    "test": "node --test tests/card/"
+  },
+  "devDependencies": {
+    "happy-dom": "15.11.7"
+  }
+}

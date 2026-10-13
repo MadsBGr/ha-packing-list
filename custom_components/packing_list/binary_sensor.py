@@ -6,6 +6,7 @@ from homeassistant.components.binary_sensor import BinarySensorEntity
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.dispatcher import async_dispatcher_connect
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.util import slugify
 
 from . import PackingListConfigEntry
 from .const import NAMES, SIGNAL_LIST_ADDED, UNIQUE_ID_LIST_PREFIX
@@ -37,6 +38,8 @@ class PackingDoneSensor(BinarySensorEntity):
         self._manager = manager
         self._list_id = list_id
         self._attr_unique_id = f"{UNIQUE_ID_LIST_PREFIX}{list_id}_done"
+        # Same suffix in every language (only used when the entity is first created).
+        self.entity_id = f"binary_sensor.{slugify(manager.lists[list_id].name)}_done"
 
     async def async_added_to_hass(self) -> None:
         """Follow changes of the trip list."""
