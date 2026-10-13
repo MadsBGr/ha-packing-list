@@ -11,6 +11,9 @@ globalThis.window = window;
 await import("../../custom_components/packing_list/frontend/packing-list-card.js");
 
 const tick = () => new Promise((resolve) => setTimeout(resolve, 0));
+// happy-dom doesn't derive <select>.value from a `selected` option set via innerHTML (browsers do),
+// so read the selected option directly.
+const selectedValue = (select) => select.querySelector("option[selected]")?.value ?? select.value;
 
 const item = (uid, summary, category, extra = {}) => ({
   uid, summary, description: "", notes: "", category, tags: [], packed: false,
@@ -127,7 +130,7 @@ test("a new list starts from the configured defaults", async () => {
   assert.deepEqual(card.$$('[data-action="toggle-new-tag"].on').map((b) => b.textContent), ["#fly"]);
   assert.equal(card.$('[data-input="newLimit"]').value, "23");
   assert.equal(card.$('[data-change="newQty"]').checked, true);
-  assert.equal(card.$('select[data-input="newPacked"]').value, "hide");
+  assert.equal(selectedValue(card.$('select[data-input="newPacked"]')), "hide");
   const name = card.$('[data-input="newName"]');
   name.value = "Rejse";
   name.dispatchEvent(new Event("input", { bubbles: true }));
@@ -159,7 +162,7 @@ test("how packed items are shown is a list setting, edited under List settings",
   card.$('[data-action="toggle-edit-list"]').click();
   await tick();
   const select = card.$('select[data-input="lPacked"]');
-  assert.equal(select.value, "hide");
+  assert.equal(selectedValue(select), "hide");
   select.value = "bottom";
   select.dispatchEvent(new Event("input", { bubbles: true }));
   card.$('[data-action="save-list"]').click();
