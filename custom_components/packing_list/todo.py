@@ -94,10 +94,8 @@ class _PackingTodoEntity(TodoListEntity):
     @callback
     def _handle_change(self) -> None:
         self.async_write_ha_state()
-        # Push item changes to open to-do dialogs (no-op on versions where
-        # async_write_ha_state already does this).
-        if hasattr(self, "async_update_listeners"):
-            self.async_update_listeners()
+        # Push item changes to open to-do dialogs.
+        self.async_update_listeners()
 
     @property
     def todo_items(self) -> list[TodoItem]:

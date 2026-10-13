@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import logging
 from typing import Any
 
 import voluptuous as vol
@@ -35,7 +34,6 @@ from .const import (
 )
 from .manager import KEEP, AmbiguousItemError, DuplicateItemError, PackingListManager
 
-ATTR_TRIP_DATE = "trip_date"
 ATTR_TAGS = "tags"
 ATTR_CATEGORY = "category"
 ATTR_CATEGORIES = "categories"
@@ -70,8 +68,6 @@ SERVICE_ADD_NEW_DEFAULTS = "add_new_defaults"
 SERVICE_SKIP_NEW_DEFAULTS = "skip_new_defaults"
 SERVICE_SET_ACTIVE_LIST = "set_active_list"
 
-_LOGGER = logging.getLogger(__name__)
-
 
 def _split_list(separator: str):
     """Validator accepting a list or a string split on separator."""
@@ -101,46 +97,16 @@ _SELECTION_SCHEMA = {
     vol.Optional(ATTR_ITEMS, default=list): _string_list,
 }
 
-# Old field names still accepted until 1.0, with a warning in the log:
-# trip_date is ignored (lists no longer have a date); add_to_master/update_master -> save_to_master.
-_DEPRECATED_RENAMED = {"add_to_master": ATTR_SAVE_TO_MASTER, "update_master": ATTR_SAVE_TO_MASTER}
-_DEPRECATED_IGNORED = (ATTR_TRIP_DATE,)
-_warned: set[str] = set()
-
-
-def _deprecated_fields(data: Any) -> Any:
-    """Translate deprecated service fields before validation."""
-    if not isinstance(data, dict):
-        return data
-    data = dict(data)
-    for old in [key for key in data if key in _DEPRECATED_RENAMED or key in _DEPRECATED_IGNORED]:
-        value = data.pop(old)
-        new = _DEPRECATED_RENAMED.get(old)
-        if new:
-            data.setdefault(new, value)
-        if old not in _warned:
-            _warned.add(old)
-            _LOGGER.warning(
-                "packing_list: the field '%s' is deprecated and will be removed in 1.0%s",
-                old,
-                f"; use '{new}' instead" if new else " (it is ignored)",
-            )
-    return data
-
-
 # include_always, use_weight and weight_limit default to the integration's options.
-CREATE_LIST_SCHEMA = vol.All(
-    _deprecated_fields,
-    vol.Schema(
-        {
-            vol.Required(ATTR_NAME): cv.string,
-            vol.Optional(ATTR_INCLUDE_ALWAYS): cv.boolean,
-            vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
-            vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
-            vol.Optional(ATTR_NOTES, default=""): cv.string,
-            **_SELECTION_SCHEMA,
-        }
-    ),
+CREATE_LIST_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_NAME): cv.string,
+        vol.Optional(ATTR_INCLUDE_ALWAYS): cv.boolean,
+        vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
+        vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
+        vol.Optional(ATTR_NOTES, default=""): cv.string,
+        **_SELECTION_SCHEMA,
+    }
 )
 
 SET_ACTIVE_LIST_SCHEMA = vol.Schema({vol.Optional(ATTR_ENTITY_ID): vol.Any(None, cv.entity_id)})
@@ -186,48 +152,39 @@ UPDATE_MASTER_ITEM_SCHEMA = vol.Schema(
 )
 
 
-ADD_LIST_ITEM_SCHEMA = vol.All(
-    _deprecated_fields,
-    vol.Schema(
-        {
-            vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-            vol.Required(ATTR_ITEM): cv.string,
-            vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
-            vol.Optional(ATTR_TAGS, default=list): _string_list,
-            vol.Optional(ATTR_QUANTITY): _quantity,
-            vol.Optional(ATTR_WEIGHT): _weight,
-            vol.Optional(ATTR_SAVE_TO_MASTER, default=False): cv.boolean,
-        }
-    ),
+ADD_LIST_ITEM_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_ITEM): cv.string,
+        vol.Optional(ATTR_CATEGORY): vol.Any(None, cv.string),
+        vol.Optional(ATTR_TAGS, default=list): _string_list,
+        vol.Optional(ATTR_QUANTITY): _quantity,
+        vol.Optional(ATTR_WEIGHT): _weight,
+        vol.Optional(ATTR_SAVE_TO_MASTER, default=False): cv.boolean,
+    }
 )
 
 # Leaving out a field keeps it.
-UPDATE_LIST_SCHEMA = vol.All(
-    _deprecated_fields,
-    vol.Schema(
-        {
-            vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-            vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(min=1)),
-            vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
-            vol.Optional(ATTR_NOTES): cv.string,
-            vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
-            vol.Optional(ATTR_ARCHIVED): cv.boolean,
-        }
-    ),
+UPDATE_LIST_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Optional(ATTR_NAME): vol.All(cv.string, vol.Length(min=1)),
+        vol.Optional(ATTR_WEIGHT_LIMIT): _weight,
+        vol.Optional(ATTR_NOTES): cv.string,
+        vol.Optional(ATTR_USE_WEIGHT): cv.boolean,
+        vol.Optional(ATTR_ARCHIVED): cv.boolean,
+    }
 )
 
 # Leaving out quantity/weight keeps them; null or 0 clears them.
-UPDATE_LIST_ITEM_SCHEMA = vol.All(
-    _deprecated_fields,
-    vol.Schema(
-        {
-            vol.Required(ATTR_ENTITY_ID): cv.entity_id,
-            vol.Required(ATTR_ITEM): cv.string,
-            vol.Optional(ATTR_QUANTITY): _quantity,
-            vol.Optional(ATTR_WEIGHT): _weight,
-            vol.Optional(ATTR_SAVE_TO_MASTER, default=False): cv.boolean,
-        }
-    ),
+UPDATE_LIST_ITEM_SCHEMA = vol.Schema(
+    {
+        vol.Required(ATTR_ENTITY_ID): cv.entity_id,
+        vol.Required(ATTR_ITEM): cv.string,
+        vol.Optional(ATTR_QUANTITY): _quantity,
+        vol.Optional(ATTR_WEIGHT): _weight,
+        vol.Optional(ATTR_SAVE_TO_MASTER, default=False): cv.boolean,
+    }
 )
 
 COPY_LIST_SCHEMA = vol.Schema(

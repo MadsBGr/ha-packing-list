@@ -72,7 +72,7 @@ async def test_add_list_item_with_weight_to_master(hass: HomeAssistant, setup_en
     entity_id = (await _create(hass, name="Tur", include_always=False, use_weight=True))["entity_id"]
     await _call(
         hass, "add_list_item",
-        {"entity_id": entity_id, "item": "Telt", "category": "Lejr", "quantity": 1, "weight": 2100.5, "add_to_master": True},  # deprecated name, still accepted
+        {"entity_id": entity_id, "item": "Telt", "category": "Lejr", "quantity": 1, "weight": 2100.5, "save_to_master": True},
     )
     data = await _data(hass, hass_ws_client)
     master = {i["summary"]: i for i in data["master"]}
@@ -81,17 +81,15 @@ async def test_add_list_item_with_weight_to_master(hass: HomeAssistant, setup_en
 
 
 async def test_notes_and_archive(hass: HomeAssistant, setup_entry, hass_ws_client) -> None:
-    # trip_date is obsolete but still accepted (and ignored) for old scripts.
-    entity_id = (await _create(hass, name="Gammel", trip_date="2025-07-01", notes="Køb solcreme"))["entity_id"]
+    entity_id = (await _create(hass, name="Gammel", notes="Køb solcreme"))["entity_id"]
     attrs = hass.states.get(entity_id).attributes
     assert (attrs["notes"], attrs["archived"]) == ("Køb solcreme", False)
 
     await _call(hass, "update_list", {"entity_id": entity_id, "archived": True, "notes": "Husk nøgler\nog pas"})
     (plist,) = (await _data(hass, hass_ws_client))["lists"]
     assert (plist["archived"], plist["notes"]) == (True, "Husk nøgler\nog pas")
-    assert "trip_date" not in plist
 
-    await _call(hass, "update_list", {"entity_id": entity_id, "archived": False, "trip_date": None, "use_weight": True})
+    await _call(hass, "update_list", {"entity_id": entity_id, "archived": False, "use_weight": True})
     (plist,) = (await _data(hass, hass_ws_client))["lists"]
     assert (plist["archived"], plist["use_weight"]) == (False, True)
     assert plist["notes"] == "Husk nøgler\nog pas"

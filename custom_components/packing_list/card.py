@@ -33,12 +33,9 @@ def _resources(hass: HomeAssistant) -> Any | None:
     lovelace = hass.data.get("lovelace")
     if lovelace is None:
         return None
-    if isinstance(lovelace, dict):  # Older Home Assistant versions
-        mode = lovelace.get("mode")
-        resources = lovelace.get("resources")
-    else:
-        mode = getattr(lovelace, "resource_mode", getattr(lovelace, "mode", None))
-        resources = getattr(lovelace, "resources", None)
+    # The attribute was renamed from "mode" to "resource_mode" in Home Assistant 2025.
+    mode = getattr(lovelace, "resource_mode", getattr(lovelace, "mode", None))
+    resources = getattr(lovelace, "resources", None)
     if mode != "storage" or resources is None or not hasattr(resources, "async_create_item"):
         return None
     return resources

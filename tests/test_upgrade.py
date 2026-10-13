@@ -1,14 +1,12 @@
-"""Upgrades: storage migration, deprecated service fields and existing entity ids."""
-
-import logging
+"""Upgrades: storage migration, removed service fields and existing entity ids."""
 
 import pytest
 from pytest_homeassistant_custom_component.common import MockConfigEntry
+import voluptuous as vol
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er
 
-from custom_components.packing_list import services
 from custom_components.packing_list.const import (
     DOMAIN,
     STORAGE_KEY,
@@ -47,36 +45,37 @@ async def test_storage_migration_from_v1(hass: HomeAssistant, hass_storage) -> N
     assert stored["data"]["master"][0]["summary"] == "Pas"
 
 
-async def test_deprecated_fields_still_work(hass: HomeAssistant, setup_entry, caplog) -> None:
-    services._warned.clear()  # each warning is logged once per run
-    caplog.set_level(logging.WARNING)
-    entity_id = (await _create(hass, name="Tur", trip_date="2025-07-01", include_always=False))["entity_id"]
-    await hass.services.async_call(
-        DOMAIN, "add_list_item",
-        {"entity_id": entity_id, "item": "Kajak", "category": "Sport", "add_to_master": True},
-        blocking=True,
-    )
-    await hass.services.async_call(
-        DOMAIN, "update_list_item",
-        {"entity_id": entity_id, "item": "Kajak", "weight": 15000, "update_master": True},
-        blocking=True,
-    )
-    master = {i["summary"]: i for i in await _items(hass, "todo.packing_list_master")}
-    assert "Kajak" in master
-    manager: PackingListManager = setup_entry.runtime_data
-    assert next(m for m in manager.master if m.summary == "Kajak").weight == 15000
-    for field in ("trip_date", "add_to_master", "update_master"):
-        assert f"'{field}' is deprecated" in caplog.text
+@pytest.mark.parametrize(
+    ("service", "field"),
+    [
+        ("create_list", "trip_date"),
+        ("add_list_item", "add_to_master"),
+        ("update_list_item", "update_master"),
+    ],
+)
+async def test_removed_fields_are_rejected(hass: HomeAssistant, setup_entry, service: str, field: str) -> None:
+    """Fields removed in 1.0 give a clear error instead of being silently ignored."""
+    entity_id = (await _create(hass, name="Tur", items=["Pas"], include_always=False))["entity_id"]
+    data = {"create_list": {"name": "X"}, "add_list_item": {"entity_id": entity_id, "item": "Kajak"},
+            "update_list_item": {"entity_id": entity_id, "item": "Pas"}}[service]
+    with pytest.raises(vol.Invalid):
+        await hass.services.async_call(DOMAIN, service, {**data, field: True}, blocking=True)
 
 
-async def test_new_field_name(hass: HomeAssistant, setup_entry) -> None:
+async def test_save_to_master(hass: HomeAssistant, setup_entry) -> None:
     entity_id = (await _create(hass, name="Tur", include_always=False))["entity_id"]
     await hass.services.async_call(
         DOMAIN, "add_list_item",
         {"entity_id": entity_id, "item": "Kajak", "save_to_master": True},
         blocking=True,
     )
-    assert "Kajak" in {i["summary"] for i in await _items(hass, "todo.packing_list_master")}
+    await hass.services.async_call(
+        DOMAIN, "update_list_item",
+        {"entity_id": entity_id, "item": "Kajak", "weight": 15000, "save_to_master": True},
+        blocking=True,
+    )
+    manager: PackingListManager = setup_entry.runtime_data
+    assert next(m for m in manager.master if m.summary == "Kajak").weight == 15000
 
 
 @pytest.mark.parametrize("language", ["da", "en", "de"])

@@ -49,7 +49,7 @@ async def test_master_is_seeded(hass: HomeAssistant, setup_entry) -> None:
 
 
 async def test_create_list_from_tags(hass: HomeAssistant, setup_entry) -> None:
-    result = await _create(hass, name="Skiferie", tags="ski", trip_date="2027-02-06")
+    result = await _create(hass, name="Skiferie", tags="ski")
     entity_id = result["entity_id"]
     assert entity_id == "todo.skiferie"
 
@@ -58,9 +58,7 @@ async def test_create_list_from_tags(hass: HomeAssistant, setup_entry) -> None:
     assert "Badetøj" not in summaries
     assert result["added"] == len(summaries)
 
-    # trip_date is no longer used, but old scripts sending it still work.
     state = hass.states.get(entity_id)
-    assert "trip_date" not in state.attributes
     assert state.attributes["version"] == VERSION
     assert hass.states.get("sensor.skiferie_packed").state == "0"
 
