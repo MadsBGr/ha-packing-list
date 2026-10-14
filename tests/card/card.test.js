@@ -281,6 +281,64 @@ test("an archived list is read-only, but its notes can be edited", async () => {
   assert.equal(card.calls.filter((c) => c.service && c.service !== "update_list").length, 0);
 });
 
+test("search filters all three tabs by name, category and tag", async () => {
+  const data = baseData();
+  data.lists[0].items.push(item("d", "Solcreme", "Toilettaske", { tags: ["strand"] }));
+  const card = await makeCard({ data });
+  const names = () => card.$$(".item .name").map((e) => e.textContent.trim());
+  const search = async (text) => {
+    const input = card.$("[data-search]");
+    input.value = text;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await tick();
+  };
+
+  await search("tand");
+  assert.deepEqual(names(), ["Tandbørste"]);
+  await search("#strand");
+  assert.deepEqual(names(), ["Solcreme"]);
+  await search("toilettaske prop"); // every word must match: category + part of the name
+  assert.deepEqual(names(), ["Ørepropper"]);
+  await search("ør"); // a part of any name
+  assert.deepEqual(names(), ["Tandbørste", "Ørepropper"]);
+  await search("andet"); // the label for items without a category
+  assert.deepEqual(names(), ["Bamse"]);
+  await search("kajak");
+  assert.match(card.text(), /Intet matcher "kajak"/);
+
+  // The search stays when switching tabs and filters the master list there.
+  await search("strand");
+  card.$('[data-action="tab"][data-tab="pick"]').click();
+  await tick();
+  assert.equal(card.$("[data-search]").value, "strand");
+  assert.deepEqual(names(), ["Solcreme", "Badetøj"]);
+  assert.equal(card.$('[data-action="pick-category"]'), null, "no 'add all' while searching");
+  card.$('[data-action="tab"][data-tab="master"]').click();
+  await tick();
+  assert.deepEqual(names(), ["Solcreme", "Badetøj"]);
+
+  card.$('[data-action="clear-search"]').click();
+  await tick();
+  assert.equal(card.$("[data-search]").value, "");
+  assert.equal(names().length, 3);
+});
+
+test("select all in delete mode only selects the items found by the search", async () => {
+  const card = await makeCard({ data: baseData() });
+  const input = card.$("[data-search]");
+  input.value = "toilettaske";
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  await tick();
+  card.$('[data-action="delete-mode"]').click();
+  await tick();
+  card.$('[data-action="select-all"]').click();
+  await tick();
+  card.$('[data-action="delete-selected"]').click();
+  await tick();
+  const call = card.calls.find((c) => c.service === "remove_item");
+  assert.deepEqual(call.data.item.sort(), ["a", "b"]); // not "c" (Bamse, no category)
+});
+
 test("warns when a list is over its weight limit", async () => {
   const data = baseData();
   data.lists[0] = list("ski", "Ski", {

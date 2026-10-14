@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide – overrides the list's own setting
  */
 
-const CARD_VERSION = "1.3.0";
+const CARD_VERSION = "1.4.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODES = ["inline", "bottom", "hide"];
 // Items without a category are grouped under this key (shown as "Andet"/"Other").
@@ -87,6 +87,9 @@ const STRINGS = {
     alwaysHint: "#{tag} = included in every new list",
     addToMaster: "Add to master",
     masterEmpty: "The master list is empty.",
+    searchPlaceholder: "Search name, category or tag",
+    clearSearch: "Clear search",
+    noMatches: 'Nothing matches "{query}"',
     resetMaster: "Reset to the default master list",
     tagsPlaceholder: "Tags – pick below or type a new one (Enter/comma adds)",
     remove: "Remove",
@@ -228,6 +231,9 @@ const STRINGS = {
     alwaysHint: "#{tag} = kommer med på alle nye lister",
     addToMaster: "Tilføj til master",
     masterEmpty: "Master-listen er tom.",
+    searchPlaceholder: "Søg i navn, kategori eller tag",
+    clearSearch: "Ryd søgning",
+    noMatches: 'Intet matcher "{query}"',
     resetMaster: "Nulstil til standard master-liste",
     tagsPlaceholder: "Tags – vælg herunder eller skriv et nyt (Enter/komma tilføjer)",
     remove: "Fjern",
@@ -414,6 +420,8 @@ const STYLE = `
   .fields { display: flex; gap: 8px; flex-wrap: wrap; }
   .fields input { min-width: 100px; }
   .notesbox { white-space: pre-line; cursor: pointer; font-size: .9em; }
+  .search { display: flex; align-items: center; gap: 6px; margin: 4px 0 8px; }
+  .search ha-icon { color: var(--secondary-text-color); flex: none; }
   .archived { background: rgba(127, 127, 127, .12); }
 `;
 
@@ -464,9 +472,19 @@ class PackingListCard extends HTMLElement {
     root.addEventListener("mousedown", (ev) => {
       if (ev.target.closest(".combo-opt")) ev.preventDefault();
     });
+    root.addEventListener("input", (ev) => {
+      if (!("search" in ev.target.dataset)) return;
+      this._search = ev.target.value;
+      this._focusSearch = true;
+      this._render();
+    });
     root.addEventListener("change", (ev) => this._onChange(ev));
     root.addEventListener("keydown", (ev) => {
       if (ev.target.dataset.catkey && this._comboKey(ev)) return;
+      if (ev.key === "Escape" && "search" in ev.target.dataset) {
+        this._action("clear-search");
+        return;
+      }
       // In a textarea Enter makes a new line; Ctrl/Cmd+Enter submits.
       const submit = ev.target.tagName === "TEXTAREA" ? ev.ctrlKey || ev.metaKey : true;
       if (ev.key === "Enter" && submit && ev.target.dataset.enter) {
@@ -894,6 +912,7 @@ class PackingListCard extends HTMLElement {
         (this._showEditList && this._list ? this._renderEditList(this._list) : "") +
         (this._showCopyList && this._list ? this._renderCopyList(this._list) : "") +
         this._renderTabs() +
+        this._renderSearch() +
         this._renderTab();
     }
     const warning = this._versionWarning ? this._t("versionWarning", this._versionWarning) : null;
@@ -904,6 +923,13 @@ class PackingListCard extends HTMLElement {
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <ha-card>${title ? `<div class="title">${esc(title)}</div>` : ""}${error}${body}</ha-card>`;
     this.shadowRoot.querySelector("[data-autofocus]")?.focus();
+    if (this._focusSearch) {
+      // Typing re-renders the card; put the cursor back at the end of the search text.
+      this._focusSearch = false;
+      const search = this.shadowRoot.querySelector("[data-search]");
+      search?.focus();
+      search?.setSelectionRange?.(search.value.length, search.value.length);
+    }
     this.shadowRoot.querySelector(".dialog")?.scrollIntoView?.({ block: "nearest" });
   }
 
@@ -1073,6 +1099,44 @@ class PackingListCard extends HTMLElement {
       .join("")}</div>`;
   }
 
+  // ----------------------------------------------------------------- search
+  // One search for all three tabs: it matches name, notes, category and tags; every word must match.
+
+  _renderSearch() {
+    const query = this._search || "";
+    return `<div class="search"><ha-icon icon="mdi:magnify"></ha-icon>
+        <input type="search" data-search placeholder="${esc(this._t("searchPlaceholder"))}" value="${esc(query)}">
+        ${query ? `<button class="icon" data-action="clear-search" title="${esc(this._t("clearSearch"))}"><ha-icon icon="mdi:close"></ha-icon></button>` : ""}
+      </div>`;
+  }
+
+  get _searchWords() {
+    return (this._search || "")
+      .toLocaleLowerCase(this._lang)
+      .split(/\s+/)
+      .map((word) => word.replace(/^#/, ""))
+      .filter(Boolean);
+  }
+
+  // Items (list or master) matching the search; all of them without a search.
+  _filter(items) {
+    const words = this._searchWords;
+    if (!words.length) return items;
+    return items.filter((item) => {
+      const text = [
+        item.summary,
+        item.notes,
+        this._categoryLabel(item.category || UNCATEGORIZED),
+        ...item.tags.map((tag) => `#${tag}`),
+      ].join(" ").toLocaleLowerCase(this._lang);
+      return words.every((word) => text.includes(word));
+    });
+  }
+
+  _noMatches() {
+    return `<div class="empty">${esc(this._t("noMatches", { query: this._search.trim() }))}</div>`;
+  }
+
   _renderTab() {
     if (this._tab === "master") return this._renderMaster();
     const list = this._list;
@@ -1177,8 +1241,9 @@ class PackingListCard extends HTMLElement {
   _renderPack(list) {
     // In delete mode everything is shown in its category, so any item can be selected.
     const mode = this._deleteMode ? "inline" : this._packedModeFor(list);
-    const packed = list.items.filter((i) => i.packed);
-    const shown = mode === "inline" ? list.items : list.items.filter((i) => !i.packed);
+    const visible = this._filter(list.items);
+    const packed = visible.filter((i) => i.packed);
+    const shown = mode === "inline" ? visible : visible.filter((i) => !i.packed);
     // Weight per category counts every item in it, also packed ones shown elsewhere.
     const catWeight = new Map();
     for (const item of list.items) {
@@ -1199,15 +1264,18 @@ class PackingListCard extends HTMLElement {
         `${weightOf(packed.reduce((sum, i) => sum + itemWeight(i), 0))}</div>` +
         [...packed].sort((a, b) => this._byName(a, b)).map((i) => this._packRow(i, list)).join("");
     }
-    const empty = this._t(list.items.length ? "allPacked" : "listEmpty");
+    const searching = this._searchWords.length > 0;
+    const empty = searching && !visible.length
+      ? this._noMatches()
+      : `<div class="empty">${esc(this._t(list.items.length ? "allPacked" : "listEmpty"))}</div>`;
     // Archived: read-only items; the notes are edited in the archived panel at the top.
-    if (list.archived) return groups || `<div class="empty">${esc(this._t("listEmpty"))}</div>`;
+    if (list.archived) return groups || empty;
     const notes = list.notes && !this._showEditList
       ? `<div class="panel notesbox" data-action="toggle-edit-list" title="${esc(this._t("editListTitle"))}">${esc(list.notes)}</div>`
       : "";
     return `${notes}
       ${this._deleteMode ? this._renderDeleteBar(list) : this._renderPackTools(list)}
-      ${groups || `<div class="empty">${esc(empty)}</div>`}
+      ${groups || empty}
       ${this._deleteMode ? "" : this._renderAddExtra(list)}`;
   }
 
@@ -1258,7 +1326,8 @@ class PackingListCard extends HTMLElement {
 
   _renderDeleteBar(list) {
     const count = this._selected.size;
-    const all = count === list.items.length;
+    const visible = this._filter(list.items);
+    const all = visible.length > 0 && visible.every((i) => this._selected.has(i.uid));
     return `<div class="row tools deletebar">
         <span class="small">${esc(this._t("deleteHint"))}</span>
         <div class="row">
@@ -1286,10 +1355,11 @@ class PackingListCard extends HTMLElement {
     const chips = this._allTags()
       .map((t) => `<button class="chip" data-action="pick-tag" data-tag="${esc(t)}">+ #${esc(t)}</button>`)
       .join("");
-    const groups = this._group(this._data.master)
+    const searching = this._searchWords.length > 0;
+    const groups = this._group(this._filter(this._data.master))
       .map(
         ([cat, catItems]) =>
-          `<div class="cat">${esc(this._categoryLabel(cat))}<button class="link" data-action="pick-category" data-cat="${esc(cat)}">${esc(this._t("addAll"))}</button></div>` +
+          `<div class="cat">${esc(this._categoryLabel(cat))}${searching ? "" : `<button class="link" data-action="pick-category" data-cat="${esc(cat)}">${esc(this._t("addAll"))}</button>`}</div>` +
           this._renderDialog(`cat:${cat}`) +
           catItems
             .map((m) => {
@@ -1308,7 +1378,7 @@ class PackingListCard extends HTMLElement {
     return `<div class="label">${esc(this._t("addAllWithTag"))}</div>
       <div class="chips">${chips || `<span class="muted small">${esc(this._t("noTags"))}</span>`}</div>
       ${this._renderDialog("pick-tags")}
-      ${groups || `<div class="empty">${esc(this._t("masterEmptyPick"))}</div>`}`;
+      ${groups || (searching ? this._noMatches() : `<div class="empty">${esc(this._t("masterEmptyPick"))}</div>`)}`;
   }
 
   // -------------------------------------------------------------- master tab
@@ -1342,7 +1412,7 @@ class PackingListCard extends HTMLElement {
 
   _renderMaster() {
     const f = this._form;
-    const groups = this._group(this._data.master)
+    const groups = this._group(this._filter(this._data.master))
       .map(
         ([cat, catItems]) =>
           `<div class="cat">${esc(this._categoryLabel(cat))}</div>` + catItems.map((m) => this._renderMasterRow(m)).join(""),
@@ -1359,7 +1429,7 @@ class PackingListCard extends HTMLElement {
           ${this._notice ? `<span class="notice">${esc(this._notice)}</span>` : ""}</div>
         ${this._renderDialog("add-master")}
       </div>
-      ${groups || `<div class="empty">${esc(this._t("masterEmpty"))}</div>`}
+      ${groups || (this._searchWords.length ? this._noMatches() : `<div class="empty">${esc(this._t("masterEmpty"))}</div>`)}
       <div class="row add"><button data-action="reset-master">
         <ha-icon icon="mdi:restore"></ha-icon> ${esc(this._t("resetMaster"))}</button></div>
       ${this._renderDialog("reset-master")}`;
@@ -1781,9 +1851,20 @@ class PackingListCard extends HTMLElement {
           this._render();
           break;
         }
-        case "select-all":
-          this._selected =
-            this._selected.size === list.items.length ? new Set() : new Set(list.items.map((i) => i.uid));
+        case "select-all": {
+          // Only the items that are shown (the search may hide some).
+          const visible = this._filter(list.items).map((i) => i.uid);
+          const all = visible.length > 0 && visible.every((uid) => this._selected.has(uid));
+          for (const uid of visible) {
+            if (all) this._selected.delete(uid);
+            else this._selected.add(uid);
+          }
+          this._render();
+          break;
+        }
+        case "clear-search":
+          this._search = "";
+          this._focusSearch = true;
           this._render();
           break;
         case "delete-selected": {

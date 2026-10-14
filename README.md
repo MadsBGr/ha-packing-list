@@ -86,6 +86,9 @@ The card and all texts follow your Home Assistant language: Danish or English (E
 
 When you type a category or a tag, existing ones are suggested. A new one is simply created.
 
+**Search:** the search field under the tabs narrows every tab to the items that match – by name, notes,
+category or tag (`#ski` or just `ski`). With several words, all of them must match. Clear it with × or Esc.
+
 ## Settings
 
 Under **Settings → Devices & services → Packing Lists → Configure** you choose what a new list starts with:
