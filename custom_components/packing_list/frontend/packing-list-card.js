@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide – overrides the list's own setting
  */
 
-const CARD_VERSION = "1.4.0";
+const CARD_VERSION = "1.4.1";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODES = ["inline", "bottom", "hide"];
 // Items without a category are grouped under this key (shown as "Andet"/"Other").
@@ -475,8 +475,7 @@ class PackingListCard extends HTMLElement {
     root.addEventListener("input", (ev) => {
       if (!("search" in ev.target.dataset)) return;
       this._search = ev.target.value;
-      this._focusSearch = true;
-      this._render();
+      this._renderSearchResults();
     });
     root.addEventListener("change", (ev) => this._onChange(ev));
     root.addEventListener("keydown", (ev) => {
@@ -913,22 +912,24 @@ class PackingListCard extends HTMLElement {
         (this._showCopyList && this._list ? this._renderCopyList(this._list) : "") +
         this._renderTabs() +
         this._renderSearch() +
-        this._renderTab();
+        `<div class="tab-body">${this._renderTab()}</div>`;
     }
     const warning = this._versionWarning ? this._t("versionWarning", this._versionWarning) : null;
     const error = [warning, this._error]
       .filter(Boolean)
       .map((msg) => `<div class="error">${esc(msg)}</div>`)
       .join("");
+    const active = this.shadowRoot.activeElement;
+    const searching = active?.matches?.("[data-search]")
+      ? { start: active.selectionStart, end: active.selectionEnd }
+      : null;
     this.shadowRoot.innerHTML = `<style>${STYLE}</style>
       <ha-card>${title ? `<div class="title">${esc(title)}</div>` : ""}${error}${body}</ha-card>`;
     this.shadowRoot.querySelector("[data-autofocus]")?.focus();
-    if (this._focusSearch) {
-      // Typing re-renders the card; put the cursor back at the end of the search text.
-      this._focusSearch = false;
+    if (searching) {
       const search = this.shadowRoot.querySelector("[data-search]");
       search?.focus();
-      search?.setSelectionRange?.(search.value.length, search.value.length);
+      search?.setSelectionRange?.(searching.start, searching.end);
     }
     this.shadowRoot.querySelector(".dialog")?.scrollIntoView?.({ block: "nearest" });
   }
@@ -1106,8 +1107,27 @@ class PackingListCard extends HTMLElement {
     const query = this._search || "";
     return `<div class="search"><ha-icon icon="mdi:magnify"></ha-icon>
         <input type="search" data-search placeholder="${esc(this._t("searchPlaceholder"))}" value="${esc(query)}">
-        ${query ? `<button class="icon" data-action="clear-search" title="${esc(this._t("clearSearch"))}"><ha-icon icon="mdi:close"></ha-icon></button>` : ""}
+        <span class="search-clear">${this._renderClearSearch()}</span>
       </div>`;
+  }
+
+  _renderClearSearch() {
+    return this._search
+      ? `<button class="icon" data-action="clear-search" title="${esc(this._t("clearSearch"))}"><ha-icon icon="mdi:close"></ha-icon></button>`
+      : "";
+  }
+
+  // Called while typing: update what's shown below the search field, but leave the field itself
+  // alone so it keeps the focus (re-creating it loses the focus and closes the phone keyboard).
+  _renderSearchResults() {
+    const body = this.shadowRoot.querySelector(".tab-body");
+    const clear = this.shadowRoot.querySelector(".search-clear");
+    if (!body || !clear) {
+      this._render();
+      return;
+    }
+    body.innerHTML = this._renderTab();
+    clear.innerHTML = this._renderClearSearch();
   }
 
   get _searchWords() {
@@ -1862,11 +1882,16 @@ class PackingListCard extends HTMLElement {
           this._render();
           break;
         }
-        case "clear-search":
+        case "clear-search": {
           this._search = "";
-          this._focusSearch = true;
-          this._render();
+          const search = this.shadowRoot.querySelector("[data-search]");
+          if (search) {
+            search.value = "";
+            search.focus();
+          }
+          this._renderSearchResults();
           break;
+        }
         case "delete-selected": {
           const uids = [...this._selected].filter((uid) => list.items.some((i) => i.uid === uid));
           this._exitDeleteMode();

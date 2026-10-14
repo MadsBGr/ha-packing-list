@@ -323,6 +323,35 @@ test("search filters all three tabs by name, category and tag", async () => {
   assert.equal(names().length, 3);
 });
 
+test("typing in the search field keeps the same field, so it keeps the focus", async () => {
+  const card = await makeCard({ data: baseData() });
+  const input = card.$("[data-search]");
+  input.focus();
+  for (const ch of "tand") {
+    input.value += ch;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    await tick();
+  }
+  assert.equal(card.$("[data-search]"), input, "the search field must not be re-created while typing");
+  assert.equal(card.el.shadowRoot.activeElement, input);
+  assert.deepEqual(card.$$(".item .name").map((e) => e.textContent.trim()), ["Tandbørste"]);
+  assert.ok(card.$('[data-action="clear-search"]'), "clear button appears");
+
+  // A full re-render (new data from Home Assistant) keeps the focus in the search field too.
+  await card.refresh();
+  assert.equal(card.el.shadowRoot.activeElement, card.$("[data-search]"));
+  assert.equal(card.$("[data-search]").value, "tand");
+
+  // Esc clears the search without losing the field.
+  const field = card.$("[data-search]");
+  field.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true }));
+  await tick();
+  assert.equal(card.$("[data-search]"), field);
+  assert.equal(field.value, "");
+  assert.equal(card.$('[data-action="clear-search"]'), null);
+  assert.equal(card.$$(".item .name").length, 3);
+});
+
 test("select all in delete mode only selects the items found by the search", async () => {
   const card = await makeCard({ data: baseData() });
   const input = card.$("[data-search]");
