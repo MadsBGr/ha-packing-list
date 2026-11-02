@@ -1,7 +1,7 @@
 """Constants for the Packing List integration."""
 
 DOMAIN = "packing_list"
-VERSION = "1.4.1"
+VERSION = "1.5.0"
 
 STORAGE_KEY = f"{DOMAIN}.storage"
 STORAGE_VERSION = 2  # see PackingListStore for the history
@@ -33,6 +33,10 @@ DEFAULTS_NOTIFICATION_ID = f"{DOMAIN}_new_defaults"
 
 UNIQUE_ID_MASTER = f"{DOMAIN}_master"
 UNIQUE_ID_LIST_PREFIX = f"{DOMAIN}_list_"
+
+# Label put on every packing list's to-do entity (not the master list), so they're easy to find
+# and filter in Home Assistant.
+PACKING_LIST_LABEL = "PackingList"
 UNIQUE_ID_ACTIVE = f"{DOMAIN}_active_list"
 UNIQUE_ID_REMAINING = f"{DOMAIN}_remaining"
 # Suffixes after f"{UNIQUE_ID_LIST_PREFIX}{list_id}" for a list's other entities.

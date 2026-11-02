@@ -11,7 +11,7 @@ from homeassistant.components.todo import (
     TodoListEntityFeature,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import entity_registry as er, label_registry as lr
 from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -20,6 +20,7 @@ from .const import (
     DOMAIN,
     MASTER_KEY,
     NAMES,
+    PACKING_LIST_LABEL,
     SIGNAL_LIST_ADDED,
     SIGNAL_MASTER_REMOVED,
     UNIQUE_ID_LIST_PREFIX,
@@ -53,6 +54,25 @@ async def async_setup_entry(
 
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_LIST_ADDED, _list_added))
     entry.async_on_unload(async_dispatcher_connect(hass, SIGNAL_MASTER_REMOVED, _master_removed))
+
+
+@callback
+def _add_packing_list_label(hass: HomeAssistant, entity_id: str) -> None:
+    """Add the "PackingList" label to a list's to-do entity, creating the label if needed.
+
+    Other labels on the entity are kept. The label (and its place on the entity) is
+    restored on the next start if it was removed.
+    """
+    registry = er.async_get(hass)
+    entry = registry.async_get(entity_id)
+    if entry is None:
+        return
+    labels = lr.async_get(hass)
+    label = labels.async_get_label_by_name(PACKING_LIST_LABEL) or labels.async_create(
+        PACKING_LIST_LABEL, icon="mdi:bag-suitcase"
+    )
+    if label.label_id not in entry.labels:
+        registry.async_update_entity(entity_id, labels={*entry.labels, label.label_id})
 
 
 @callback
@@ -195,6 +215,11 @@ class TripTodoEntity(_PackingTodoEntity):
         """The list's name; follows renames."""
         plist = self._manager.lists.get(self._key)
         return plist.name if plist else None
+
+    async def async_added_to_hass(self) -> None:
+        """Follow the list and give its to-do entity the packing list label."""
+        await super().async_added_to_hass()
+        _add_packing_list_label(self.hass, self.entity_id)
 
     async def async_will_remove_from_hass(self) -> None:
         """Delete the list if its entity was deleted in the HA UI."""

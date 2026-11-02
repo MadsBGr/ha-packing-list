@@ -10,7 +10,7 @@
  *   packed_mode: bottom      # optional: inline | bottom | hide – overrides the list's own setting
  */
 
-const CARD_VERSION = "1.4.1";
+const CARD_VERSION = "1.5.0";
 const RELOADED_FOR_KEY = "packing-list-card.reloaded-for";
 const PACKED_MODES = ["inline", "bottom", "hide"];
 // Items without a category are grouped under this key (shown as "Andet"/"Other").
