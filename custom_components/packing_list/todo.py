@@ -58,7 +58,7 @@ async def async_setup_entry(
 
 @callback
 def _add_packing_list_label(hass: HomeAssistant, entity_id: str) -> None:
-    """Add the "PackingList" label to a list's to-do entity, creating the label if needed.
+    """Add the "PackingList" label to a to-do entity (master or packing list), creating it if needed.
 
     Other labels on the entity are kept. The label (and its place on the entity) is
     restored on the next start if it was removed.
@@ -99,8 +99,9 @@ class _PackingTodoEntity(TodoListEntity):
         self._key = key
 
     async def async_added_to_hass(self) -> None:
-        """Follow changes in the manager."""
+        """Follow changes in the manager and give the to-do entity the packing list label."""
         self.async_on_remove(self._manager.async_add_listener(self._key, self._handle_change))
+        _add_packing_list_label(self.hass, self.entity_id)
 
     def _deleted_outside_integration(self) -> bool:
         """True if the entity was deleted outside the integration (e.g. in the HA UI).
@@ -215,11 +216,6 @@ class TripTodoEntity(_PackingTodoEntity):
         """The list's name; follows renames."""
         plist = self._manager.lists.get(self._key)
         return plist.name if plist else None
-
-    async def async_added_to_hass(self) -> None:
-        """Follow the list and give its to-do entity the packing list label."""
-        await super().async_added_to_hass()
-        _add_packing_list_label(self.hass, self.entity_id)
 
     async def async_will_remove_from_hass(self) -> None:
         """Delete the list if its entity was deleted in the HA UI."""

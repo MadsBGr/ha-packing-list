@@ -112,8 +112,8 @@ These are only the starting point: every list can change them under **✏️ Lis
 | `binary_sensor.<list>_done` | **On** when everything on the list is packed. |
 | `sensor.<list>_packed` | Percentage of the list that is packed. |
 
-Every packing list's to-do entity gets the label **PackingList** (created automatically), so you can find and
-filter them under *Settings → Entities* or use the label in automations. Your own labels on them are kept.
+The master list and every packing list get the label **PackingList** on their to-do entity (created
+automatically), so you can find and filter them under *Settings → Entities* or use the label in automations. Your own labels on them are kept.
 
 The entity ids are the same in every language; only the displayed names are translated. (Entities
 created before version 0.14 keep the ids they got then, e.g. `select.pakkeliste_aktiv` with Danish as

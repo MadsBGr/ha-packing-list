@@ -1,4 +1,4 @@
-"""The to-do entities behind packing lists get the "PackingList" label."""
+"""The to-do entities (master list and packing lists) get the "PackingList" label."""
 
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers import entity_registry as er, label_registry as lr
@@ -22,10 +22,8 @@ async def test_packing_lists_get_the_label(hass: HomeAssistant, setup_entry) -> 
         )
     )["entity_id"]
 
-    for entity_id in (ski, beach, copy):
+    for entity_id in (MASTER, ski, beach, copy):
         assert _labels(hass, entity_id) == {PACKING_LIST_LABEL}
-    # The master list isn't a packing list.
-    assert _labels(hass, MASTER) == set()
     # One label, shared by all lists.
     assert [label.name for label in lr.async_get(hass).async_list_labels()] == [PACKING_LIST_LABEL]
 
