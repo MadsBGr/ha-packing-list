@@ -16,16 +16,19 @@ from homeassistant.helpers.selector import (
     SelectSelector,
     SelectSelectorConfig,
     SelectSelectorMode,
+    TextSelector,
 )
 
 from .const import (
     CONF_DEFAULT_TAGS,
     CONF_INCLUDE_ALWAYS,
+    CONF_LABEL,
     CONF_PACKED_MODE,
     CONF_QUANTITY_CONTROLS,
     CONF_SEED_MASTER,
     CONF_USE_WEIGHT,
     CONF_WEIGHT_LIMIT,
+    DEFAULT_LABEL,
     DEFAULT_PACKED_MODE,
     DOMAIN,
     NAMES,
@@ -70,6 +73,9 @@ class PackingListOptionsFlow(OptionsFlow):
     ) -> ConfigFlowResult:
         """One form with all defaults."""
         if user_input is not None:
+            # A cleared text field isn't sent at all; store it as "" so it means "no label"
+            # instead of falling back to the default.
+            user_input = {**user_input, CONF_LABEL: user_input.get(CONF_LABEL, "").strip()}
             return self.async_create_entry(data=user_input)
 
         options = self.config_entry.options
@@ -112,6 +118,11 @@ class PackingListOptionsFlow(OptionsFlow):
                             min=0, max=500, step=0.5, unit_of_measurement="kg", mode=NumberSelectorMode.BOX
                         )
                     ),
+                    # suggested_value (not default): clearing the field must mean "no label".
+                    vol.Optional(
+                        CONF_LABEL,
+                        description={"suggested_value": options.get(CONF_LABEL, DEFAULT_LABEL)},
+                    ): TextSelector(),
                 }
             ),
         )

@@ -386,13 +386,15 @@
           "default_tags": "Tags der er valgt på forhånd",
           "weight_limit_kg": "Standard-vægtgrænse (0 = ingen)",
           "quantity_controls": "Vis antal-knapper på kortet",
-          "packed_mode": "Visning af pakkede punkter"
+          "packed_mode": "Visning af pakkede punkter",
+          "label": "Label på to-do-listerne"
         },
         "data_description": {
           "default_tags": "Disse tags er markeret, når du trykker \"+ Ny liste\".",
           "weight_limit_kg": "Den vægtgrænse nye lister starter med, f.eks. 23 for en kuffert eller 8 for håndbagage. Kan ændres på hver liste. Gælder lister der bruger vægt.",
           "quantity_controls": "Viser − og + ved hvert punkt i fanen Pak, så antallet kan ændres direkte. Kan slås til og fra på hver liste.",
-          "packed_mode": "Hvordan pakkede punkter vises på kortet for nye lister. Kan ændres på hver liste."
+          "packed_mode": "Hvordan pakkede punkter vises på kortet for nye lister. Kan ændres på hver liste.",
+          "label": "Sættes på master-listen og alle pakkelister, så de er nemme at finde og filtrere i Home Assistant. Lad feltet være tomt for ingen label. Ændrer du teksten, flyttes listerne over på den nye label."
         }
       }
     }

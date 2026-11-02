@@ -100,6 +100,7 @@ Under **Settings → Devices & services → Packing Lists → Configure** you ch
 - **How packed items are shown** – in their category, together at the bottom, or hidden
 - **Tags selected in advance** when you press "+ New list"
 - **Default weight limit** in kg, e.g. 23 for a suitcase or 8 for hand luggage
+- **Label on the to-do lists** – `PackingList` by default; change the text, or leave it empty for no label
 
 These are only the starting point: every list can change them under **✏️ List settings**.
 
@@ -113,7 +114,7 @@ These are only the starting point: every list can change them under **✏️ Lis
 | `sensor.<list>_packed` | Percentage of the list that is packed. |
 
 The master list and every packing list get the label **PackingList** on their to-do entity (created
-automatically), so you can find and filter them under *Settings → Entities* or use the label in automations. Your own labels on them are kept.
+automatically; the text can be changed or turned off under *Configure*), so you can find and filter them under *Settings → Entities* or use the label in automations. Your own labels on them are kept.
 
 The entity ids are the same in every language; only the displayed names are translated. (Entities
 created before version 0.14 keep the ids they got then, e.g. `select.pakkeliste_aktiv` with Danish as

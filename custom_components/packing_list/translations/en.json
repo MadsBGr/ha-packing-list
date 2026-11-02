@@ -386,13 +386,15 @@
           "default_tags": "Tags selected in advance",
           "weight_limit_kg": "Default weight limit (0 = none)",
           "quantity_controls": "Show quantity buttons on the card",
-          "packed_mode": "How packed items are shown"
+          "packed_mode": "How packed items are shown",
+          "label": "Label on the to-do lists"
         },
         "data_description": {
           "default_tags": "These tags are selected when you press \"+ New list\".",
           "weight_limit_kg": "The weight limit new lists start with, e.g. 23 for a suitcase or 8 for hand luggage. Can be changed on each list. Applies to lists that use weight.",
           "quantity_controls": "Shows − and + next to each item on the Pack tab, so the quantity can be changed directly. Can be turned on and off on each list.",
-          "packed_mode": "How packed items are shown on the card for new lists. Can be changed on each list."
+          "packed_mode": "How packed items are shown on the card for new lists. Can be changed on each list.",
+          "label": "Added to the master list and every packing list, so they're easy to find and filter in Home Assistant. Leave empty for no label. If you change the text, the lists are moved to the new label."
         }
       }
     }

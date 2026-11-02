@@ -11,7 +11,7 @@ from homeassistant.components.todo import (
     TodoListEntityFeature,
 )
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.helpers import entity_registry as er, label_registry as lr
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.dispatcher import async_dispatcher_connect, async_dispatcher_send
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
@@ -20,13 +20,13 @@ from .const import (
     DOMAIN,
     MASTER_KEY,
     NAMES,
-    PACKING_LIST_LABEL,
     SIGNAL_LIST_ADDED,
     SIGNAL_MASTER_REMOVED,
     UNIQUE_ID_LIST_PREFIX,
     UNIQUE_ID_MASTER,
     VERSION,
 )
+from .labels import async_add_label, label_name
 from .manager import ArchivedListError, PackingListManager
 from .services import archived_error, async_remove_list_entities
 
@@ -57,25 +57,6 @@ async def async_setup_entry(
 
 
 @callback
-def _add_packing_list_label(hass: HomeAssistant, entity_id: str) -> None:
-    """Add the "PackingList" label to a to-do entity (master or packing list), creating it if needed.
-
-    Other labels on the entity are kept. The label (and its place on the entity) is
-    restored on the next start if it was removed.
-    """
-    registry = er.async_get(hass)
-    entry = registry.async_get(entity_id)
-    if entry is None:
-        return
-    labels = lr.async_get(hass)
-    label = labels.async_get_label_by_name(PACKING_LIST_LABEL) or labels.async_create(
-        PACKING_LIST_LABEL, icon="mdi:bag-suitcase"
-    )
-    if label.label_id not in entry.labels:
-        registry.async_update_entity(entity_id, labels={*entry.labels, label.label_id})
-
-
-@callback
 def _delete_list_and_sensor(hass: HomeAssistant, manager: PackingListManager, list_id: str) -> None:
     """Finish deleting a list whose to-do entity was removed outside the integration."""
     async_remove_list_entities(hass, list_id)
@@ -99,9 +80,12 @@ class _PackingTodoEntity(TodoListEntity):
         self._key = key
 
     async def async_added_to_hass(self) -> None:
-        """Follow changes in the manager and give the to-do entity the packing list label."""
+        """Follow changes in the manager and give the to-do entity the configured label.
+
+        The label is (re)added on every start, so it comes back if it was removed.
+        """
         self.async_on_remove(self._manager.async_add_listener(self._key, self._handle_change))
-        _add_packing_list_label(self.hass, self.entity_id)
+        async_add_label(self.hass, self.entity_id, label_name(self._manager.options))
 
     def _deleted_outside_integration(self) -> bool:
         """True if the entity was deleted outside the integration (e.g. in the HA UI).

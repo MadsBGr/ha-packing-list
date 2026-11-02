@@ -12,6 +12,7 @@ from homeassistant.helpers.typing import ConfigType
 
 from .const import CONF_SEED_MASTER, DOMAIN, UNIQUE_ID_LIST_PREFIX
 from .card import async_setup_frontend
+from .labels import async_relabel, label_name
 from .manager import PackingListManager
 from .services import async_register_services, async_update_defaults_notification
 from .websocket import async_register_websocket
@@ -49,8 +50,12 @@ async def async_setup_entry(hass: HomeAssistant, entry: PackingListConfigEntry) 
 
 
 async def _options_updated(hass: HomeAssistant, entry: PackingListConfigEntry) -> None:
-    """New defaults for new lists; no reload needed."""
-    entry.runtime_data.options_updated(entry.options)
+    """New defaults for new lists and maybe a new label; no reload needed."""
+    manager = entry.runtime_data
+    old_label, new_label = label_name(manager.options), label_name(entry.options)
+    manager.options_updated(entry.options)
+    if old_label != new_label:
+        async_relabel(hass, entry, old_label, new_label)
 
 
 @callback
